@@ -8,3 +8,11 @@ dependencies = [
     "apscheduler>=3.11.2",
     "httpx>=0.28.1",
 ]
+
+[tool]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
