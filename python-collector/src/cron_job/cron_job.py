@@ -1,21 +1,17 @@
-from datetime import datetime
+from producer.producer import RabbitMQProducer
+import structlog
 from apscheduler.schedulers.blocking import BlockingScheduler
 
+from api_client.api import WeatherAPIClient
 
-def tick_3():
-    print(f"Tick 3! The time is: {datetime.now()}")
-
-
-def tick_1():
-    print(f"Tick 1! The time is: {datetime.now()}")
+logger = structlog.get_logger()
 
 
-def cron_job(scheduler: BlockingScheduler) -> None:
-    scheduler.add_job(tick_3, "interval", seconds=3)
+def configure_cron_job(scheduler: BlockingScheduler) -> None:
+    logger.info("Setting up cron jobs...")
+    collector = WeatherAPIClient()
+    producer = RabbitMQProducer(collector)
 
-    scheduler.add_job(tick_1, "interval", seconds=1)
+    scheduler.add_job(producer.execute, "cron", minute=0, id="hourly-weather-collector")
 
-    try:
-        scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        pass
+    logger.info("Cron jobs set up successfully.")
