@@ -40,10 +40,12 @@ class WeatherAPIClient:
             "current": ",".join(variables),
         }
 
-        r = httpx.get(self.base_url, params=params)
+        r = httpx.get(self.base_url, params=params, timeout=30.0)
 
         logger.debug("API Response", status_code=r.status_code, response=r.text)
         try:
+            r.raise_for_status()
+
             current_weather_dto = from_dict(
                 data_class=CurrentWeatherResponseDTO, data=r.json()
             )
