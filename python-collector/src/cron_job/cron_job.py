@@ -12,8 +12,6 @@ def configure_cron_job(scheduler: BlockingScheduler) -> None:
     collector = WeatherAPIClient()
     producer = RabbitMQProducer(collector)
 
-    scheduler.add_job(
-        producer.execute, "interval", seconds=4, id="hourly-weather-collector"
-    )
+    scheduler.add_job(producer.execute, "cron", minute=0, id="hourly-weather-collector")
 
     logger.info("Cron jobs set up successfully.")
