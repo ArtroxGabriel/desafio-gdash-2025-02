@@ -4,15 +4,16 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = [
-    "apscheduler>=3.11.2",
-    "httpx>=0.28.1",
-]
+dependencies = ["apscheduler>=3.11.2", "httpx>=0.28.1"]
+
+[project.scripts]
+weather-collector = "main:main"
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool]
 
 [tool.pyrefly]
-project-includes = [
-    "**/*.py*",
-    "**/*.ipynb",
-]
+project-includes = ["**/*.py*", "**/*.ipynb"]
