@@ -9,6 +9,7 @@ import (
 	"net"
 
 	"github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/cmd/config"
+	apiclient "github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/pkg/api_client"
 	"github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/pkg/dto"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/samber/do/v2"
@@ -17,12 +18,16 @@ import (
 type Consumer struct {
 	logger *slog.Logger
 	cfg    *config.Config
+
+	apiClient apiclient.ClientInterface
 }
 
 func NewConsumer(i do.Injector) (*Consumer, error) {
 	return &Consumer{
 		logger: do.MustInvoke[*slog.Logger](i),
 		cfg:    do.MustInvoke[*config.Config](i),
+
+		apiClient: do.MustInvokeAs[apiclient.ClientInterface](i),
 	}, nil
 }
 
@@ -61,8 +66,13 @@ func (c *Consumer) Start(ctx context.Context) error {
 			if !ok {
 				continue
 			}
-			_ = data
-			// TODO: use the data
+
+			err = c.apiClient.SaveData(ctx, data)
+			if err != nil {
+				c.logger.ErrorContext(ctx, "Error saving weather data",
+					slog.Any("data", data),
+					slog.String("error", err.Error()))
+			}
 		}
 	}
 }
