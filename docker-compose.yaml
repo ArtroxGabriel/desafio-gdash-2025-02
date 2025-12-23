@@ -13,7 +13,7 @@ services:
       - app_network
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:4-management
     container_name: rabbitmq_service
     ports:
       - "${RABBITMQ_UI_PORT}:15672"
@@ -52,11 +52,16 @@ services:
   python-collector:
     build: ./python-collector
     container_name: python_collector
-    ports:
-      - "${PYTHON_COLLECTOR_PORT}:8000"
     environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      WEATHER_API_KEY: "${WEATHER_API_KEY}"
+      LATITUDE: "${LATITUDE}"
+      LONGITUDE: "${LONGITUDE}"
+      TIMEZONE: "${TIMEZONE}"
+      WEATHER_BASE_URL: "${WEATHER_BASE_URL}"
+      RABBITMQ_USER: "${RABBITMQ_USER}"
+      RABBITMQ_PASS: "${RABBITMQ_PASS}"
+      RABBITMQ_PORT: "${RABBITMQ_PORT}"
+      RABBITMQ_QUEUE: "${RABBITMQ_QUEUE}"
+      RABBITMQ_HOST: "rabbitmq"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -67,7 +72,6 @@ services:
     build: ./go-worker
     container_name: go_worker
     environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
       API_URL: ${NESTJS_API}
     depends_on:
       rabbitmq:
