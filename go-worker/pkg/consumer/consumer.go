@@ -1,4 +1,4 @@
-// Package consumer represents the rabbit mail queue consumer.
+// Package consumer represents the RabbitMQ queue consumer.
 package consumer
 
 import (
@@ -46,8 +46,17 @@ func (c *Consumer) Start(ctx context.Context) error {
 		_ = conn.Close()
 	}()
 
-	go func() {
-		for d := range msgs {
+	c.logger.InfoContext(ctx, "Consumer started, waiting for messages...")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case d, ok := <-msgs:
+			if !ok {
+				return nil
+			}
+
 			data, ok := c.processMessage(ctx, d)
 			if !ok {
 				continue
@@ -55,13 +64,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 			_ = data
 			// TODO: use the data
 		}
-	}()
-
-	c.logger.InfoContext(ctx, "Consumer started, waiting for messages...")
-
-	<-ctx.Done()
-
-	return ctx.Err()
+	}
 }
 
 func (c *Consumer) setupConnection(

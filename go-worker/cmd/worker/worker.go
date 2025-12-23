@@ -41,11 +41,6 @@ func main() {
 	consumer := do.MustInvoke[*consumer.Consumer](injector)
 
 	if err := consumer.Start(ctx); err != nil {
-		log.ErrorContext(ctx, "error starting consumer", slog.String("error", err.Error()))
-		return
-	}
-
-	if err := consumer.Start(ctx); err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.ErrorContext(ctx, "error starting consumer",
 				slog.String("error", err.Error()))
