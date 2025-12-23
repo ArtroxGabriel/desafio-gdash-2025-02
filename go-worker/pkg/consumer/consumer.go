@@ -126,7 +126,7 @@ func (c *Consumer) processMessage(ctx context.Context, d amqp.Delivery) (*dto.Cu
 		return nil, false
 	}
 
-	c.logger.InfoContext(ctx, "Processed weather data",
+	c.logger.DebugContext(ctx, "Processed weather data",
 		slog.Any("data", payload))
 
 	_ = d.Ack(false)

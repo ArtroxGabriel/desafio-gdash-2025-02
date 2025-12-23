@@ -32,6 +32,7 @@ func main() {
 	var cfg config.Config
 	if err := envconfig.Process(ctx, &cfg); err != nil {
 		log.ErrorContext(ctx, "error loading configs", slog.String("error", err.Error()))
+		defer fail()
 		return
 	}
 	do.ProvideValue(injector, &cfg)
@@ -44,9 +45,14 @@ func main() {
 		if !errors.Is(err, context.Canceled) {
 			log.ErrorContext(ctx, "error starting consumer",
 				slog.String("error", err.Error()))
+			defer fail()
 			return
 		}
 	}
 
 	log.InfoContext(ctx, "Worker shut down gracefully")
+}
+
+func fail() {
+	os.Exit(1)
 }
