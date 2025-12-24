@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/cmd/config"
+	apiclient "github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/pkg/api_client"
 	"github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/pkg/consumer"
 	"github.com/ArtroxGabriel/desafio-gdash-2025-02/go-worker/pkg/logger"
 	"github.com/samber/do/v2"
@@ -24,6 +25,7 @@ func main() {
 
 	injector := do.New(
 		logger.Package,
+		apiclient.Package,
 		consumer.Package,
 	)
 
