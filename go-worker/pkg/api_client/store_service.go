@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"net/http"
@@ -38,7 +40,7 @@ func NewClientService(i do.Injector) (*ClientService, error) {
 		logger: do.MustInvoke[*slog.Logger](i),
 		cfg:    cfg,
 		client: do.MustInvoke[*http.Client](i),
-		path:   fmt.Sprintf("%s/weather-snapshot", cfg.APIURL),
+		path:   fmt.Sprintf("%s/weather", cfg.APIURL),
 	}, nil
 }
 
@@ -71,6 +73,13 @@ func (s *ClientService) SaveData(ctx context.Context, payload *dto.CurrentWeathe
 			return nil
 		}
 
+		var clientErr *ClientError
+		if errors.As(err, &clientErr) {
+			s.logger.ErrorContext(ctx, "Permanent client error detected, aborting retries",
+				slog.String("error", clientErr.Error()))
+			return err
+		}
+
 		lastErr = err
 	}
 
@@ -79,6 +88,7 @@ func (s *ClientService) SaveData(ctx context.Context, payload *dto.CurrentWeathe
 }
 
 func (s *ClientService) doRequest(ctx context.Context, data []byte) error {
+	s.logger.InfoContext(ctx, "Sending data to API", slog.String("url", s.path))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.path, bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -96,9 +106,15 @@ func (s *ClientService) doRequest(ctx context.Context, data []byte) error {
 		return nil
 	}
 
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	responseMsg := string(bodyBytes)
+
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return fmt.Errorf("api client error (status %d): %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+		return &ClientError{
+			StatusCode: resp.StatusCode,
+			Message:    responseMsg,
+		}
 	}
 
-	return fmt.Errorf("api server error (status %d)", resp.StatusCode)
+	return fmt.Errorf("api server error (status %d) ", resp.StatusCode)
 }
