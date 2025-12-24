@@ -5,7 +5,12 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
-import { DataResponse, MessageResponse, StatusCode } from '../http/response';
+import {
+  DataResponse,
+  MessageResponse,
+  PaginationResponse,
+  StatusCode,
+} from '../http/response';
 
 @Injectable()
 export class ResponseTransformer implements NestInterceptor {
@@ -13,6 +18,7 @@ export class ResponseTransformer implements NestInterceptor {
     return next.handle().pipe(
       map((data) => {
         if (data instanceof MessageResponse) return data;
+        if (data instanceof PaginationResponse) return data;
         if (data instanceof DataResponse) return data;
         if (typeof data == 'string')
           return new MessageResponse(StatusCode.SUCCESS, data);

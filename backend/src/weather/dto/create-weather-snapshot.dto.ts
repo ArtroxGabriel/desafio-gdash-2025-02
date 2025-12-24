@@ -63,10 +63,6 @@ export class WeatherSnapshotDto {
   @IsNumber()
   @ApiProperty({ example: 43.6 })
   public readonly wind_gusts_10m: number;
-
-  constructor(partial: Partial<WeatherSnapshotDto>) {
-    Object.assign(this, partial);
-  }
 }
 
 export class CreateWeatherDTO {
@@ -83,8 +79,4 @@ export class CreateWeatherDTO {
   @Type(() => WeatherSnapshotDto)
   @ApiProperty({ type: WeatherSnapshotDto })
   public readonly current: WeatherSnapshotDto;
-
-  constructor(partial: Partial<CreateWeatherDTO>) {
-    Object.assign(this, partial);
-  }
 }

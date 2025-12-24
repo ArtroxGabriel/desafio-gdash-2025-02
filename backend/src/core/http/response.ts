@@ -23,3 +23,23 @@ export class DataResponse<T> extends MessageResponse {
     this.data = data;
   }
 }
+
+export class PaginationResponse<T> extends DataResponse<T[]> {
+  readonly total: number;
+  readonly page: number;
+  readonly limit: number;
+
+  constructor(
+    statusCode: StatusCode,
+    message: string,
+    data: T[],
+    total: number,
+    page: number,
+    limit: number,
+  ) {
+    super(statusCode, message, data);
+    this.total = total;
+    this.page = page;
+    this.limit = limit;
+  }
+}

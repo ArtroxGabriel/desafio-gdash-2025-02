@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Post,
+  Query,
   ValidationPipe,
 } from '@nestjs/common';
 import { CreateWeatherDTO } from '../dto/create-weather-snapshot.dto';
@@ -22,12 +25,16 @@ export class WeatherController {
   async createSnapshot(
     @Body(new ValidationPipe()) weatherDto: CreateWeatherDTO,
   ) {
-    const created = await this.weatherService.create(weatherDto);
-    return created;
+    return this.weatherService.create(weatherDto);
   }
 
   @Get()
-  async findAll() {}
+  async findAll(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.weatherService.findAll(page, limit);
+  }
 
   @Get(':id')
   @ApiNotFoundResponse({ description: 'Snapshot not found' })
