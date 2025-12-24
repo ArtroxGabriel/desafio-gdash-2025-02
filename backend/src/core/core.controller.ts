@@ -4,7 +4,7 @@ import { Public } from '../auth/decorators/public.decorator';
 @Public()
 @Controller()
 export class CoreController {
-  @Get('health')
+  @Get('healthcheck')
   heartbeat() {
     return 'alive';
   }
