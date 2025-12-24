@@ -1,21 +1,20 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
-  NotFoundException,
   Param,
-  ParseIntPipe,
   Post,
   Query,
   ValidationPipe,
 } from '@nestjs/common';
+import { ApiNotFoundResponse } from '@nestjs/swagger';
+import { Types } from 'mongoose';
+import { SearchParams } from 'src/core/http/query/query';
+import { SearchQuery } from 'src/core/http/query/query.decorator';
+import { MongoIdTransformer } from '../../common/mongoid.transformer';
 import { CreateWeatherDTO } from '../dto/create-weather-snapshot.dto';
 import { WeatherService } from '../service/weather.service';
-import { ApiNotFoundResponse } from '@nestjs/swagger';
-import { MongoIdTransformer } from '../../common/mongoid.transformer';
-import { Types } from 'mongoose';
 
 @Controller('weather')
 export class WeatherController {
@@ -29,21 +28,15 @@ export class WeatherController {
   }
 
   @Get()
-  async findAll(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-  ) {
-    return this.weatherService.findAll(page, limit);
+  @SearchQuery()
+  async findAll(@Query() search: SearchParams) {
+    return this.weatherService.findAll(search.page, search.limit);
   }
 
   @Get(':id')
   @ApiNotFoundResponse({ description: 'Snapshot not found' })
   async findOne(@Param('id', MongoIdTransformer) id: Types.ObjectId) {
-    const snapshot = await this.weatherService.findOne(id);
-    if (!snapshot) {
-      return new NotFoundException('Snapshot not found');
-    }
-    return snapshot;
+    return await this.weatherService.findOne(id);
   }
 
   @Delete(':id')

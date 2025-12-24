@@ -45,7 +45,7 @@ export class WeatherService {
     const snapshot = await this.weatherRepository.findOne(id);
     if (!snapshot) {
       this.logger.warn(`Weather snapshot with id: ${id.toString()} not found`);
-      throw new NotFoundException('Snapshot not found');
+      throw new NotFoundException('weather snapshot not found');
     }
 
     this.logger.log(
@@ -60,7 +60,7 @@ export class WeatherService {
     const removed = await this.weatherRepository.remove(id);
     if (!removed) {
       this.logger.warn(`Weather snapshot with id: ${id.toString()} not found`);
-      throw new NotFoundException('Snapshot not found');
+      throw new NotFoundException('weather snapshot not found');
     }
 
     this.logger.log(
