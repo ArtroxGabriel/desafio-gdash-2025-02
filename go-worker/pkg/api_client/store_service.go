@@ -1,4 +1,4 @@
-// Package apiclient represents the serivice responsible for data storage operations.
+// Package apiclient represents the service responsible for data storage operations.
 package apiclient
 
 import (
