@@ -15,19 +15,19 @@ import { ConfigService } from '@nestjs/config';
 import { ServerConfig, ServerConfigName } from '../../config/server.config';
 import { WinstonLogger } from '../../setup/winston.logger';
 
-interface ErrorResponse {
+type ErrorResponse = {
   message?: string | string[];
   error?: string;
   statusCode?: number;
-}
+  errors?: unknown[];
+};
 
 @Catch()
-export class ExpectionHandler implements ExceptionFilter {
+export class ExceptionHandler implements ExceptionFilter {
   constructor(
     private readonly configService: ConfigService,
     private readonly logger: WinstonLogger,
   ) {}
-
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -121,6 +121,16 @@ export class ExpectionHandler implements ExceptionFilter {
 
     if (typeof body === 'object' && body !== null) {
       const errorBody = body as ErrorResponse;
+
+      if (errorBody.errors) {
+        return {
+          message:
+            typeof errorBody.message === 'string'
+              ? errorBody.message
+              : 'Validation failed',
+          errors: errorBody.errors,
+        };
+      }
 
       if (isArray(errorBody.message) && errorBody.message.length > 0) {
         return {
