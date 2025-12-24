@@ -72,6 +72,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 				c.logger.ErrorContext(ctx, "Error saving weather data",
 					slog.Any("data", data),
 					slog.String("error", err.Error()))
+				continue
 			}
 			c.logger.InfoContext(ctx, "Weather data saved successfully")
 		}
