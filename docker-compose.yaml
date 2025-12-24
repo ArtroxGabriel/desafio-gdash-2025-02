@@ -7,8 +7,8 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - frontend
-      - api
+      - web_frontend
+      - nestjs_api
     networks:
       - app_network
 
@@ -81,12 +81,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-      api:
+      nestjs_api:
         condition: service_started
     networks:
       - app_network
 
-  api:
+  nestjs_api:
     build: ./backend
     container_name: nestjs_api
     ports:
@@ -99,7 +99,7 @@ services:
     networks:
       - app_network
 
-  frontend:
+  web_frontend:
     build: ./frontend
     container_name: web_frontend
     networks:
