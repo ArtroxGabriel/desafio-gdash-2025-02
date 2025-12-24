@@ -73,6 +73,11 @@ services:
     container_name: go_worker
     environment:
       API_URL: ${NESTJS_API}
+      RABBITMQ_USER: "${RABBITMQ_USER}"
+      RABBITMQ_PASS: "${RABBITMQ_PASS}"
+      RABBITMQ_PORT: "${RABBITMQ_PORT}"
+      RABBITMQ_QUEUE: "${RABBITMQ_QUEUE}"
+      RABBITMQ_HOST: "rabbitmq"
     depends_on:
       rabbitmq:
         condition: service_healthy
