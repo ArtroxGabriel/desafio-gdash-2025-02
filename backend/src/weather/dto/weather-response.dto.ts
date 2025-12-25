@@ -1,29 +1,56 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsDate, IsNumber } from 'class-validator';
 import { Types } from 'mongoose';
+import { IsMongoIdObject } from 'src/common/mongoid.validation';
 import { WeatherSnapshotDto } from './create-weather-snapshot.dto';
 
 export class WeatherSnapshotResponseDto {
+  @IsMongoIdObject()
+  @ApiProperty({ description: 'Unique identifier', type: String })
   public readonly id: Types.ObjectId;
 
+  @IsDate()
+  @ApiProperty({ description: 'Timestamp of the snapshot', type: String })
   public readonly time: Date;
 
+  @IsNumber()
+  @ApiProperty({ description: 'Interval in minutes', type: Number })
   public readonly interval: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly temperature_2m: number;
 
+  @IsBoolean()
+  @ApiProperty()
   public readonly is_day: boolean;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly relative_humidity_2m: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly apparent_temperature: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly weather_code: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly precipitation: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly wind_speed_10m: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly wind_direction_10m: number;
 
+  @IsNumber()
+  @ApiProperty()
   public readonly wind_gusts_10m: number;
 
   constructor(partial: WeatherSnapshotDto & { _id: Types.ObjectId }) {
