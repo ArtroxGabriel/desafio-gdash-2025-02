@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -29,6 +30,7 @@ async function server() {
   const configService = app.get(ConfigService);
   const serverConfig = configService.getOrThrow<ServerConfig>(ServerConfigName);
 
+  Logger.debug(`Starting server on port ${serverConfig.port}`);
   await app.listen(serverConfig.port);
 }
 

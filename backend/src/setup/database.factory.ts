@@ -10,8 +10,6 @@ import mongoose from 'mongoose';
 
 @Injectable()
 export class DatabaseFactory implements MongooseOptionsFactory {
-  private readonly logger = new Logger(DatabaseFactory.name);
-
   constructor(private readonly configService: ConfigService) {}
 
   createMongooseOptions(): MongooseModuleOptions {
@@ -29,7 +27,7 @@ export class DatabaseFactory implements MongooseOptionsFactory {
       this.configService.getOrThrow<ServerConfig>(ServerConfigName);
     if (serverConfig.nodeEnv == 'development') mongoose.set({ debug: true });
 
-    this.logger.debug('Database URI: ' + uri);
+    Logger.debug('Database URI: ' + uri);
 
     return {
       uri: uri,
