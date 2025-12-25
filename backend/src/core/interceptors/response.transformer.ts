@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import {
-  DataResponse,
-  MessageResponse,
-  PaginationResponse,
+  DataResponseDTO,
+  MessageResponseDTO,
+  PaginationResponseDTO,
   StatusCode,
 } from '../http/response';
 
@@ -17,12 +17,12 @@ export class ResponseTransformer implements NestInterceptor {
   intercept(_: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
       map((data) => {
-        if (data instanceof MessageResponse) return data;
-        if (data instanceof PaginationResponse) return data;
-        if (data instanceof DataResponse) return data;
+        if (data instanceof MessageResponseDTO) return data;
+        if (data instanceof PaginationResponseDTO) return data;
+        if (data instanceof DataResponseDTO) return data;
         if (typeof data == 'string')
-          return new MessageResponse(StatusCode.SUCCESS, data);
-        return new DataResponse(StatusCode.SUCCESS, 'success', data);
+          return new MessageResponseDTO(StatusCode.SUCCESS, data);
+        return new DataResponseDTO(StatusCode.SUCCESS, 'success', data);
       }),
     );
   }
