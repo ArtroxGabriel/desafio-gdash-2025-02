@@ -9,7 +9,6 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import {
-  ApiExtraModels,
   ApiNotFoundResponse,
   ApiOkResponse,
   getSchemaPath,
@@ -17,14 +16,15 @@ import {
 import { Types } from 'mongoose';
 import { MongoIdTransformer } from 'src/common/mongoid.transformer';
 import { SearchParams } from 'src/core/http/query/query';
-import { SearchQuery } from 'src/core/http/query/query.decorator';
-import { PaginationResponseDTO } from 'src/core/http/response';
+import {
+  ApiPaginatedResponse,
+  SearchQuery,
+} from 'src/core/http/query/query.decorator';
 import { CreateWeatherDTO } from './dto/create-weather-snapshot.dto';
 import { WeatherSnapshotResponseDto } from './dto/weather-response.dto';
 import { WeatherService } from './weather.service';
 
 @Controller('weather')
-@ApiExtraModels(PaginationResponseDTO, WeatherSnapshotResponseDto)
 export class WeatherController {
   constructor(private readonly weatherService: WeatherService) {}
 
@@ -41,22 +41,10 @@ export class WeatherController {
 
   @Get()
   @SearchQuery()
-  @ApiOkResponse({
-    description: 'Retrieved weather snapshots successfully',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(PaginationResponseDTO) },
-        {
-          properties: {
-            data: {
-              type: 'array',
-              items: { $ref: getSchemaPath(WeatherSnapshotResponseDto) },
-            },
-          },
-        },
-      ],
-    },
-  })
+  @ApiPaginatedResponse(
+    WeatherSnapshotResponseDto,
+    'Retrieved weather snapshots successfully',
+  )
   async findAll(@Query() search: SearchParams) {
     return this.weatherService.findAll(search.page, search.limit);
   }
