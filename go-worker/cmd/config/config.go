@@ -3,6 +3,7 @@ package config
 
 type Config struct {
 	APIURL   string          `env:"API_URL,required"`
+	APIKEY   string          `env:"API_URL,required"`
 	Rabbitmq *RabbitmqConfig `env:",prefix=RABBITMQ_"`
 }
 

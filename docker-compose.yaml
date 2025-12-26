@@ -72,6 +72,7 @@ services:
     build: ./go-worker
     container_name: go_worker
     environment:
+      API_KEY: ${API_KEY}
       API_URL: ${NESTJS_API}
       RABBITMQ_USER: "${RABBITMQ_USER}"
       RABBITMQ_PASS: "${RABBITMQ_PASS}"

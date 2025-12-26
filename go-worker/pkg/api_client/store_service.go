@@ -94,6 +94,7 @@ func (s *ClientService) doRequest(ctx context.Context, data []byte) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Api-Key", s.cfg.APIKEY)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
