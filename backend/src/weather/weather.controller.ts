@@ -19,9 +19,9 @@ import { MongoIdTransformer } from 'src/common/mongoid.transformer';
 import { SearchParams } from 'src/core/http/query/query';
 import { SearchQuery } from 'src/core/http/query/query.decorator';
 import { PaginationResponseDTO } from 'src/core/http/response';
-import { CreateWeatherDTO } from '../dto/create-weather-snapshot.dto';
-import { WeatherSnapshotResponseDto } from '../dto/weather-response.dto';
-import { WeatherService } from '../service/weather.service';
+import { CreateWeatherDTO } from './dto/create-weather-snapshot.dto';
+import { WeatherSnapshotResponseDto } from './dto/weather-response.dto';
+import { WeatherService } from './weather.service';
 
 @Controller('weather')
 @ApiExtraModels(PaginationResponseDTO, WeatherSnapshotResponseDto)
