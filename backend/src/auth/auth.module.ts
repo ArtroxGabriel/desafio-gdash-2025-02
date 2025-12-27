@@ -7,7 +7,7 @@ import { UserModule } from '@user/user.module';
 import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
 import { AuthService } from './auth.service';
-import { AuthGuard, RoleGuard } from './guards';
+import { ApikeyGuard, AuthGuard, RoleGuard } from './guards';
 import { ApiKey, ApiKeySchema } from './schemas/apikey.schema';
 import { Keystore, KeystoreSchema } from './schemas/keystore.schema';
 import { Role, RoleSchema } from './schemas/role.schema';
@@ -28,6 +28,7 @@ import TokenFactory from './token/token.factory';
     UserModule,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: ApikeyGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RoleGuard },
     AuthService,

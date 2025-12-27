@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { User } from '@user/schemas/user.schema';
 import { UserService } from '@user/user.service';
 import { Request } from 'express';
 import { Types } from 'mongoose';
@@ -44,18 +45,18 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid Access Token');
     }
 
-    const user = await this.userService.findById(
+    const userDto = await this.userService.findById(
       new Types.ObjectId(payload.sub),
     );
-    if (!user) {
+    if (!userDto) {
       throw new UnauthorizedException('User not registered');
       this.logger.warn(`User not found for ID: ${payload.sub}`);
     }
 
-    const keystore = await this.authService.findKeystore(user, payload.prm);
+    const keystore = await this.authService.findKeystore(userDto, payload.prm);
     if (!keystore) throw new UnauthorizedException('Invalid Access Token');
 
-    request.user = user;
+    request.user = new User(userDto);
     request.keystore = keystore;
 
     return true;

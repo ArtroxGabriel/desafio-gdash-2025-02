@@ -1,3 +1,4 @@
+import { IS_PUBLIC_KEY } from '@auth/decorators/public.decorator';
 import { Roles } from '@auth/decorators/role.decorator';
 import { ProtectedRequest } from '@core/http/request';
 import {
@@ -16,7 +17,12 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    console.log('RolesGuard canActivate called');
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     let roles = this.reflector.get(Roles, context.getHandler());
     if (!roles) roles = this.reflector.get(Roles, context.getClass());
     if (roles) {
