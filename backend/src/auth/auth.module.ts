@@ -20,9 +20,16 @@ import TokenFactory from './token/token.factory';
       imports: [ConfigModule],
       useClass: TokenFactory,
     }),
+    MongooseModule.forFeature([
+      { name: ApiKey.name, schema: ApiKeySchema },
+      { name: Keystore.name, schema: KeystoreSchema },
+      { name: Role.name, schema: RoleSchema },
+    ]),
     UserModule,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: RoleGuard },
     AuthService,
     AuthRepository,
   ],
