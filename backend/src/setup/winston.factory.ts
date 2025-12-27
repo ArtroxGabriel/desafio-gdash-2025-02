@@ -1,19 +1,23 @@
-import { Injectable, LoggerService } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  utilities,
+  WinstonModuleOptions,
+  WinstonModuleOptionsFactory,
+} from 'nest-winston';
+import { resolve } from 'path';
 import * as winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { ServerConfig, ServerConfigName } from '../config/server.config';
-import { resolve } from 'path';
 
 @Injectable()
-export class WinstonLogger implements LoggerService {
-  private readonly logger: winston.Logger;
+export class WinstonFactory implements WinstonModuleOptionsFactory {
+  constructor(private readonly configService: ConfigService) {}
 
-  constructor(private readonly configService: ConfigService) {
+  createWinstonModuleOptions(): WinstonModuleOptions {
     const serverConfig =
       this.configService.getOrThrow<ServerConfig>(ServerConfigName);
     const logsPath = resolve(__dirname, '../..', serverConfig.logDirectory);
-
     const logLevel = serverConfig.nodeEnv === 'development' ? 'warn' : 'error';
 
     const dailyRotateFile = new DailyRotateFile({
@@ -27,48 +31,30 @@ export class WinstonLogger implements LoggerService {
       maxFiles: '14d',
     });
 
-    this.logger = winston.createLogger({
+    return {
       level: logLevel,
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.errors({ stack: true }),
-        winston.format.prettyPrint(),
+        winston.format.json(),
       ),
       transports: [
         new winston.transports.Console({
           level: logLevel,
           format: winston.format.combine(
-            winston.format.errors({ stack: true }),
-            winston.format.prettyPrint(),
+            winston.format.timestamp(),
+            winston.format.ms(),
+            utilities.format.nestLike('WeatherAPI', {
+              colors: true,
+              prettyPrint: true,
+              processId: true,
+              appName: true,
+            }),
           ),
         }),
         dailyRotateFile,
       ],
       exitOnError: false,
-    });
-  }
-
-  log(message: string) {
-    this.logger.info(message);
-  }
-
-  error(message: string, trace?: string) {
-    if (trace) {
-      this.logger.error(`${message}\n${trace}`, trace);
-    } else {
-      this.logger.error(message);
-    }
-  }
-
-  warn(message: string) {
-    this.logger.warn(message);
-  }
-
-  debug(message: string) {
-    this.logger.debug(message);
-  }
-
-  verbose(message: string) {
-    this.logger.verbose(message);
+    };
   }
 }

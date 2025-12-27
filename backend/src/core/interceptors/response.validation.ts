@@ -1,18 +1,18 @@
 import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
   CallHandler,
+  ExecutionContext,
+  Injectable,
   InternalServerErrorException,
+  Logger,
+  NestInterceptor,
 } from '@nestjs/common';
+import { ValidationError, validateSync } from 'class-validator';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ValidationError, validateSync } from 'class-validator';
-import { WinstonLogger } from 'src/setup/winston.logger';
 
 @Injectable()
 export class ResponseValidation implements NestInterceptor {
-  constructor(private readonly logger: WinstonLogger) {}
+  private readonly logger = new Logger(ResponseValidation.name);
 
   intercept(_: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(

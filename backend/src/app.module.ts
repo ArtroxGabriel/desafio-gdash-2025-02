@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { WeatherModule } from './weather/weather.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DatabaseFactory } from './setup/database.factory';
+import { WinstonModule } from 'nest-winston';
 import databaseConfig from './config/database.config';
 import serverConfig from './config/server.config';
-import { WinstonLogger } from './setup/winston.logger';
 import { CoreModule } from './core/core.module';
+import { WinstonFactory } from './setup/winston.factory';
 
 @Module({
   imports: [
@@ -15,6 +17,10 @@ import { CoreModule } from './core/core.module';
       cache: true,
       envFilePath: '.env',
     }),
+    WinstonModule.forRootAsync({
+      imports: [ConfigModule],
+      useClass: WinstonFactory,
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useClass: DatabaseFactory,
@@ -22,11 +28,6 @@ import { CoreModule } from './core/core.module';
     CoreModule,
     WeatherModule,
   ],
-  providers: [
-    {
-      provide: 'Logger',
-      useClass: WinstonLogger,
-    },
-  ],
+  providers: [Logger],
 })
 export class AppModule {}

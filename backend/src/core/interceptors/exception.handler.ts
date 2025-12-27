@@ -1,19 +1,19 @@
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { TokenExpiredError } from '@nestjs/jwt';
-import { Request, Response } from 'express';
-import { StatusCode } from '../http/response';
-import { isArray } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
+import { TokenExpiredError } from '@nestjs/jwt';
+import { isArray } from 'class-validator';
+import { Request, Response } from 'express';
 import { ServerConfig, ServerConfigName } from '../../config/server.config';
-import { WinstonLogger } from '../../setup/winston.logger';
+import { StatusCode } from '../http/response';
 
 type ErrorResponse = {
   message?: string | string[];
@@ -24,10 +24,9 @@ type ErrorResponse = {
 
 @Catch()
 export class ExceptionHandler implements ExceptionFilter {
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly logger: WinstonLogger,
-  ) {}
+  private readonly logger = new Logger(ExceptionHandler.name);
+
+  constructor(private readonly configService: ConfigService) {}
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();

@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
-import { ResponseTransformer } from './interceptors/response.transformer';
-import { ExceptionHandler } from './interceptors/exception.handler';
 import { ConfigModule } from '@nestjs/config';
-import { WinstonLogger } from '../setup/winston.logger';
-import { CoreController } from './core.controller';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { validationFactory } from '../setup/validation.factory';
+import { CoreController } from './core.controller';
+import { ExceptionHandler } from './interceptors/exception.handler';
+import { ResponseTransformer } from './interceptors/response.transformer';
 import { ResponseValidation } from './interceptors/response.validation';
 
 @Module({
@@ -18,7 +17,6 @@ import { ResponseValidation } from './interceptors/response.validation';
       provide: APP_PIPE,
       useFactory: validationFactory,
     },
-    WinstonLogger,
   ],
   controllers: [CoreController],
 })
