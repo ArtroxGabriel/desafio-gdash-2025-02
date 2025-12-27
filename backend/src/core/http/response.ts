@@ -10,7 +10,7 @@ export enum StatusCode {
 
 export class MessageResponseDTO {
   @IsEnum(StatusCode)
-  @ApiProperty({ description: 'Status code of the response' })
+  @ApiProperty({ description: 'Status code of the response', enum: StatusCode })
   readonly statusCode: StatusCode;
 
   @IsString()
