@@ -8,7 +8,7 @@ import { Exclude } from 'class-transformer';
 export class RoleDto {
   @IsMongoIdObject()
   @ApiProperty({ description: 'Unique identifier', type: String })
-  readonly _id: Types.ObjectId;
+  readonly id: Types.ObjectId;
 
   @IsNotEmpty()
   @ApiProperty({ enum: RoleCode })
@@ -18,7 +18,7 @@ export class RoleDto {
   readonly status: boolean;
 
   constructor(role: Role) {
-    this._id = role._id;
+    this.id = role._id;
     this.code = role.code;
     this.status = role.status;
   }

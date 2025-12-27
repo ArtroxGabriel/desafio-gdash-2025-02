@@ -1,5 +1,6 @@
 import { Role } from '@auth/schemas/role.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { UserDto } from '@user/dto/user.dto';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
@@ -28,6 +29,13 @@ export class User {
 
   @Prop({ default: true })
   readonly status: boolean;
+
+  constructor(userDto: UserDto) {
+    this._id = userDto.id;
+    this.name = userDto.name;
+    this.email = userDto.email;
+    this.roles = userDto.roles.map((roleDto) => new Role(roleDto));
+  }
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
