@@ -3,7 +3,6 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WinstonModule } from 'nest-winston';
-import { ApiKey, ApiKeySchema } from './auth/schemas/apikey.schema';
 import authConfig from './config/auth.config';
 import databaseConfig from './config/database.config';
 import serverConfig from './config/server.config';
@@ -29,7 +28,6 @@ import { WeatherModule } from './weather/weather.module';
       imports: [ConfigModule],
       useClass: DatabaseFactory,
     }),
-    MongooseModule.forFeature([{ name: ApiKey.name, schema: ApiKeySchema }]),
     CoreModule,
     AuthModule,
     WeatherModule,

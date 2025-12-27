@@ -18,7 +18,7 @@ export class WinstonFactory implements WinstonModuleOptionsFactory {
     const serverConfig =
       this.configService.getOrThrow<ServerConfig>(ServerConfigName);
     const logsPath = resolve(__dirname, '../..', serverConfig.logDirectory);
-    const logLevel = serverConfig.nodeEnv === 'development' ? 'warn' : 'error';
+    const logLevel = serverConfig.nodeEnv === 'development' ? 'debug' : 'info';
 
     const dailyRotateFile = new DailyRotateFile({
       level: logLevel,
