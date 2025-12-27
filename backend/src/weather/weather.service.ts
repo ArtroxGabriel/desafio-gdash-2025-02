@@ -14,7 +14,9 @@ export class WeatherService {
   async create(createWeatherDto: CreateWeatherDTO): Promise<string> {
     this.logger.log('Creating new weather snapshot');
 
-    const result = await this.weatherRepository.create(createWeatherDto);
+    const result = await this.weatherRepository.create(
+      createWeatherDto.current,
+    );
     if (!result) {
       this.logger.error('Failed to create weather snapshot');
       throw new Error('Failed to create weather snapshot');

@@ -3,7 +3,11 @@ import { HydratedDocument, Types } from 'mongoose';
 
 export type WeatherSnapshotDocument = HydratedDocument<WeatherSnapshot>;
 
-@Schema()
+@Schema({
+  collection: 'weather_snapshots',
+  versionKey: false,
+  timestamps: true,
+})
 export class WeatherSnapshot {
   readonly _id: Types.ObjectId;
 
@@ -43,3 +47,5 @@ export class WeatherSnapshot {
 
 export const WeatherSnapshotSchema =
   SchemaFactory.createForClass(WeatherSnapshot);
+
+WeatherSnapshotSchema.index({ time: 1 });

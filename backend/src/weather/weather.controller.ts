@@ -1,3 +1,4 @@
+import { Public } from '@auth/decorators/public.decorator';
 import {
   Body,
   Controller,
@@ -33,6 +34,7 @@ export class WeatherController {
     description: 'snapshot created successfully',
     schema: { type: 'string' },
   })
+  @Public()
   async createSnapshot(
     @Body(new ValidationPipe()) weatherDto: CreateWeatherDTO,
   ) {
@@ -45,6 +47,7 @@ export class WeatherController {
     WeatherSnapshotResponseDto,
     'Retrieved weather snapshots successfully',
   )
+  @Public()
   async findAll(@Query() search: SearchParams) {
     return this.weatherService.findAll(search.page, search.limit);
   }
@@ -55,6 +58,7 @@ export class WeatherController {
     schema: { $ref: getSchemaPath(WeatherSnapshotResponseDto) },
   })
   @ApiNotFoundResponse({ description: 'Snapshot not found' })
+  @Public()
   async findOne(@Param('id', MongoIdTransformer) id: Types.ObjectId) {
     return await this.weatherService.findOne(id);
   }
@@ -65,6 +69,7 @@ export class WeatherController {
     schema: { type: 'string' },
   })
   @ApiNotFoundResponse({ description: 'Snapshot not found' })
+  @Public()
   async remove(@Param('id', MongoIdTransformer) id: Types.ObjectId) {
     return this.weatherService.remove(id);
   }

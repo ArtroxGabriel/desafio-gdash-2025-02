@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { CreateWeatherDTO } from './dto/create-weather-snapshot.dto';
 import { WeatherSnapshot } from './schemas/weather.schema';
 
 @Injectable()
@@ -11,10 +10,11 @@ export class WeatherRepository {
     private readonly weatherModel: Model<WeatherSnapshot>,
   ) {}
 
-  async create(createWeatherDto: CreateWeatherDTO): Promise<WeatherSnapshot> {
-    const createdWeather = new this.weatherModel(createWeatherDto.current);
-    const res = await createdWeather.save();
-    return res.toObject();
+  async create(
+    weatherToCreate: Omit<WeatherSnapshot, '_id'>,
+  ): Promise<WeatherSnapshot> {
+    const createdWeather = await this.weatherModel.create(weatherToCreate);
+    return createdWeather.toObject();
   }
 
   async findAll(

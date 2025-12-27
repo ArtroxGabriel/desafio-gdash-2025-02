@@ -10,11 +10,9 @@ export class WeatherSnapshotResponseDto {
   public readonly id: Types.ObjectId;
 
   @IsDate()
-  @ApiProperty({ description: 'Timestamp of the snapshot', type: String })
   public readonly time: Date;
 
   @IsNumber()
-  @ApiProperty({ description: 'Interval in minutes', type: Number })
   public readonly interval: number;
 
   @IsNumber()
