@@ -22,8 +22,11 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@core/*": ["./src/core"],
-      "@common/*": ["./src/common"]
+      "@core/*": ["./src/core/*"],
+      "@common/*": ["./src/common/*"],
+      "@weather/*": ["./src/weather/*"],
+      "@user/*": ["./src/user/*"],
+      "@auth/*": ["./src/auth/*"]
     }
   }
 }
