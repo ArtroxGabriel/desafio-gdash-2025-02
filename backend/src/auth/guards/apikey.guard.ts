@@ -1,6 +1,6 @@
 import { AuthService } from '@auth/auth.service';
 import { Permissions } from '@auth/decorators/permissions.decorator';
-import { IS_PUBLIC_KEY } from '@auth/decorators/public.decorator';
+import { VERIFY_API_KEY } from '@auth/decorators/public.decorator';
 import { Permission } from '@auth/schemas/apikey.schema';
 import { HeaderName } from '@core/http/header';
 import { PublicRequest } from '@core/http/request';
@@ -23,11 +23,12 @@ export class ApikeyGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (isPublic) return true;
+    const shouldVerify =
+      this.reflector.getAllAndOverride<boolean>(VERIFY_API_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? false;
+    if (!shouldVerify) return true;
 
     const permissions = this.reflector.get(Permissions, context.getClass()) ?? [
       Permission.GENERAL,

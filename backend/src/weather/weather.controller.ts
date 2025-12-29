@@ -1,4 +1,4 @@
-import { Public } from '@auth/decorators/public.decorator';
+import { Public, VerifyApiKey } from '@auth/decorators/public.decorator';
 import {
   Body,
   Controller,
@@ -29,12 +29,12 @@ import { WeatherService } from './weather.service';
 export class WeatherController {
   constructor(private readonly weatherService: WeatherService) {}
 
+  @VerifyApiKey()
   @Post()
   @ApiOkResponse({
     description: 'snapshot created successfully',
     schema: { type: 'string' },
   })
-  @Public()
   async createSnapshot(
     @Body(new ValidationPipe()) weatherDto: CreateWeatherDTO,
   ) {

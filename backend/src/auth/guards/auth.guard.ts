@@ -49,12 +49,15 @@ export class AuthGuard implements CanActivate {
       new Types.ObjectId(payload.sub),
     );
     if (!userDto) {
-      throw new UnauthorizedException('User not registered');
       this.logger.warn(`User not found for ID: ${payload.sub}`);
+      throw new UnauthorizedException('User not registered');
     }
 
     const keystore = await this.authService.findKeystore(userDto, payload.prm);
-    if (!keystore) throw new UnauthorizedException('Invalid Access Token');
+    if (!keystore) {
+      this.logger.warn('No keystore found for the provided access token');
+      throw new UnauthorizedException('Invalid Access Token');
+    }
 
     request.user = new User(userDto);
     request.keystore = keystore;

@@ -3,11 +3,13 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { UserDto } from '@user/dto/user.dto';
+import { User } from '@user/schemas/user.schema';
 import { UserService } from '@user/user.service';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
@@ -16,11 +18,13 @@ import { TokenConfig, TokenConfigName } from 'src/config/token.config';
 import { AuthRepository } from './auth.repository';
 import { SignInBasicDto } from './dto/signin-basic.dto';
 import { TokenRefreshDto } from './dto/token-refresh.dto';
+import { UserAuthDto } from './dto/user-auth.dto';
 import { UserTokensDto } from './dto/user-tokens.dto';
+import { ApiKey, Permission } from './schemas/apikey.schema';
 import { Keystore } from './schemas/keystore.schema';
 import { RoleCode } from './schemas/role.schema';
 import { TokenPayload } from './token/token.payload';
-import { ApiKey } from './schemas/apikey.schema';
+import { ApiKeyDto } from './dto/api-key.dto';
 
 @Injectable()
 export class AuthService {
@@ -33,18 +37,21 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async signUpBasic(signUpBasicDto: SignInBasicDto): Promise<{
-    user: UserDto;
-    tokens: UserTokensDto;
-  }> {
+  async signUp(signUpBasicDto: SignInBasicDto): Promise<UserAuthDto> {
     this.logger.log(`Signing up user with email ${signUpBasicDto.email}`);
 
-    const user = await this.userService.findByEmail(signUpBasicDto.email);
-    if (user) {
-      this.logger.warn(
-        `User with email ${signUpBasicDto.email} already exists`,
-      );
-      throw new BadRequestException('User already exists');
+    try {
+      const user = await this.userService.findByEmail(signUpBasicDto.email);
+      if (user) {
+        this.logger.warn(
+          `User with email ${signUpBasicDto.email} already exists`,
+        );
+        throw new BadRequestException('User already exists');
+      }
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) {
+        throw error;
+      }
     }
 
     const role = await this.authRepository.findRole(RoleCode.VIEWER);
@@ -63,17 +70,15 @@ export class AuthService {
 
     if (!createdUserDto) throw new InternalServerErrorException();
 
-    const tokensDto = await this.createTokens(createdUserDto);
+    const tokensDto = await this.createToken(createdUserDto);
 
     this.logger.log(
       `User with email ${signUpBasicDto.email} signed up successfully`,
     );
-    return { user: createdUserDto, tokens: tokensDto };
+    return new UserAuthDto(createdUserDto, tokensDto);
   }
 
-  async signInBasic(
-    signInBasicDto: SignInBasicDto,
-  ): Promise<{ user: UserDto; tokens: UserTokensDto }> {
+  async signIn(signInBasicDto: SignInBasicDto): Promise<UserAuthDto> {
     const userDto = await this.userService.findByEmail(signInBasicDto.email);
     if (!userDto) {
       this.logger.warn(`User with email ${signInBasicDto.email} not found`);
@@ -94,16 +99,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokensDto = await this.createTokens(userDto);
+    const tokenDto = await this.createToken(userDto);
 
-    return { user: userDto, tokens: tokensDto };
+    return new UserAuthDto(userDto, tokenDto);
   }
 
-  async signOut(keystore: Keystore): Promise<Keystore | null> {
-    return this.authRepository.removeKeystore(keystore._id);
+  async signOut(keystore: Keystore): Promise<string> {
+    await this.authRepository.removeKeystore(keystore._id);
+    return 'Logout successful';
   }
 
-  async refreshTokens(tokenRefreshDto: TokenRefreshDto, accessToken: string) {
+  async refreshToken(tokenRefreshDto: TokenRefreshDto, accessToken: string) {
     const accessTokenPayload = this.decodeToken(accessToken);
     const validAccessToken = this.validatePayload(accessTokenPayload);
     if (!validAccessToken) {
@@ -160,16 +166,16 @@ export class AuthService {
 
     await this.authRepository.removeKeystore(keystore._id);
 
-    const tokens = await this.createTokens(userDto);
+    const tokenDto = await this.createToken(userDto);
 
     this.logger.log(
-      `Tokens refreshed successfully for user with id ${userDto._id.toString()}`,
+      `Token refreshed successfully for user with id ${userDto.id.toString()}`,
     );
-    return { user: userDto, tokens: tokens };
+    return new UserAuthDto(userDto, tokenDto);
   }
 
-  private async createTokens(user: UserDto) {
-    this.logger.log(`Creating tokens for user with id ${user._id.toString()}`);
+  private async createToken(user: UserDto) {
+    this.logger.log(`Creating token for user with id ${user.id.toString()}`);
 
     const tokenConfig =
       this.configService.getOrThrow<TokenConfig>(TokenConfigName);
@@ -184,7 +190,7 @@ export class AuthService {
     );
     if (!keystore) {
       this.logger.error(
-        `Failed to create keystore for user with id ${user._id.toString()}`,
+        `Failed to create keystore for user with id ${user.id.toString()}`,
       );
       throw new InternalServerErrorException();
     }
@@ -192,7 +198,7 @@ export class AuthService {
     const accessTokenPayload = new TokenPayload(
       tokenConfig.issuer,
       tokenConfig.audience,
-      user._id.toString(),
+      user.id.toString(),
       accessTokenKey,
       tokenConfig.accessTokenValidity,
     );
@@ -200,7 +206,7 @@ export class AuthService {
     const refreshTokenPayload = new TokenPayload(
       tokenConfig.issuer,
       tokenConfig.audience,
-      user._id.toString(),
+      user.id.toString(),
       refreshTokenKey,
       tokenConfig.refreshTokenValidity,
     );
@@ -257,7 +263,11 @@ export class AuthService {
     primaryKey: string,
     secondaryKey: string,
   ): Promise<Keystore> {
-    return this.authRepository.createKeystore(client, primaryKey, secondaryKey);
+    return this.authRepository.createKeystore(
+      new User(client),
+      primaryKey,
+      secondaryKey,
+    );
   }
 
   async findTokensKeystore(
@@ -266,22 +276,32 @@ export class AuthService {
     secondaryKey: string,
   ): Promise<Keystore | null> {
     return this.authRepository.findTokensKeystore(
-      client,
+      new User(client),
       primaryKey,
       secondaryKey,
     );
   }
 
   async findKeystore(client: UserDto, key: string): Promise<Keystore | null> {
-    return this.authRepository.findKeystore(client, key);
+    return this.authRepository.findKeystore(new User(client), key);
   }
 
   async findApiKey(key: string): Promise<ApiKey | null> {
     return this.authRepository.findApiKey(key);
   }
 
-  async createApiKey(apikey: Omit<ApiKey, '_id' | 'status'>): Promise<ApiKey> {
-    return this.authRepository.createApiKey(apikey);
+  async createApiKey(email: string): Promise<ApiKeyDto> {
+    const secureKey = randomBytes(32).toString('hex');
+
+    const apiKey = await this.authRepository.createApiKey({
+      key: secureKey,
+      version: 1,
+      permissions: [Permission.GENERAL],
+      comments: [`Generated for user: ${email}`],
+    });
+
+    this.logger.log('api key created for user: ' + email);
+    return new ApiKeyDto(apiKey);
   }
 
   async deleteApiKey(apikey: ApiKey): Promise<ApiKey | null> {
