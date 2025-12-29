@@ -1,3 +1,6 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsInt, IsString } from 'class-validator';
+
 export enum StatusCode {
   SUCCESS = 10000,
   FAILURE = 10001,
@@ -5,8 +8,13 @@ export enum StatusCode {
   INVALID_ACCESS_TOKEN = 10003,
 }
 
-export class MessageResponse {
+export class MessageResponseDTO {
+  @IsEnum(StatusCode)
+  @ApiProperty({ description: 'Status code of the response', enum: StatusCode })
   readonly statusCode: StatusCode;
+
+  @IsString()
+  @ApiProperty({ description: 'Message describing the response' })
   readonly message: string;
 
   constructor(statusCode: StatusCode, message: string) {
@@ -15,7 +23,7 @@ export class MessageResponse {
   }
 }
 
-export class DataResponse<T> extends MessageResponse {
+export class DataResponseDTO<T> extends MessageResponseDTO {
   readonly data: T;
 
   constructor(statusCode: StatusCode, message: string, data: T) {
@@ -24,9 +32,17 @@ export class DataResponse<T> extends MessageResponse {
   }
 }
 
-export class PaginationResponse<T> extends DataResponse<T[]> {
+export class PaginationResponseDTO<T> extends DataResponseDTO<T[]> {
+  @IsInt()
+  @ApiProperty({ description: 'Total number of items available' })
   readonly total: number;
+
+  @IsInt()
+  @ApiProperty({ description: 'Current page number' })
   readonly page: number;
+
+  @IsInt()
+  @ApiProperty({ description: 'Number of items per page' })
   readonly limit: number;
 
   constructor(

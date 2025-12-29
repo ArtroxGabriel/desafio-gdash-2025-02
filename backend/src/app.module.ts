@@ -1,32 +1,38 @@
-import { Module } from '@nestjs/common';
+import { AuthModule } from '@auth/auth.module';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { WeatherModule } from './weather/weather.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { DatabaseFactory } from './setup/database.factory';
+import { WinstonModule } from 'nest-winston';
+import authConfig from './config/auth.config';
 import databaseConfig from './config/database.config';
 import serverConfig from './config/server.config';
-import { WinstonLogger } from './setup/winston.logger';
+import tokenConfig from './config/token.config';
 import { CoreModule } from './core/core.module';
+import { DatabaseFactory } from './setup/database.factory';
+import { WinstonFactory } from './setup/winston.factory';
+import { UserModule } from './user/user.module';
+import { WeatherModule } from './weather/weather.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      load: [databaseConfig, serverConfig],
+      load: [databaseConfig, serverConfig, authConfig, tokenConfig],
       cache: true,
       envFilePath: '.env',
+    }),
+    WinstonModule.forRootAsync({
+      imports: [ConfigModule],
+      useClass: WinstonFactory,
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useClass: DatabaseFactory,
     }),
     CoreModule,
+    AuthModule,
     WeatherModule,
+    UserModule,
   ],
-  providers: [
-    {
-      provide: 'Logger',
-      useClass: WinstonLogger,
-    },
-  ],
+  providers: [Logger],
 })
 export class AppModule {}

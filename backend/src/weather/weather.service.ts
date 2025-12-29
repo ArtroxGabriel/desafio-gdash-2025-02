@@ -1,9 +1,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { CreateWeatherDTO } from '../dto/create-weather-snapshot.dto';
-import { WeatherRepository } from '../repository/weather.repository';
 import { Types } from 'mongoose';
-import { WeatherSnapshotResponseDto } from '../dto/weather-response.dto';
-import { PaginationResponse, StatusCode } from 'src/core/http/response';
+import { PaginationResponseDTO, StatusCode } from 'src/core/http/response';
+import { CreateWeatherDTO } from './dto/create-weather-snapshot.dto';
+import { WeatherSnapshotResponseDto } from './dto/weather-response.dto';
+import { WeatherRepository } from './weather.repository';
 
 @Injectable()
 export class WeatherService {
@@ -11,35 +11,47 @@ export class WeatherService {
 
   constructor(private weatherRepository: WeatherRepository) {}
 
-  async create(createWeatherDto: CreateWeatherDTO) {
+  async create(createWeatherDto: CreateWeatherDTO): Promise<string> {
     this.logger.log('Creating new weather snapshot');
 
-    const result = await this.weatherRepository.create(createWeatherDto);
+    const result = await this.weatherRepository.create(
+      createWeatherDto.current,
+    );
+    if (!result) {
+      this.logger.error('Failed to create weather snapshot');
+      throw new Error('Failed to create weather snapshot');
+    }
 
     this.logger.log('Weather snapshot created successfully');
-    return new WeatherSnapshotResponseDto(result);
+    return 'Snapshot created';
   }
 
-  async findAll(page: number, limit: number) {
+  async findAll(
+    page: number,
+    limit: number,
+  ): Promise<PaginationResponseDTO<WeatherSnapshotResponseDto>> {
     this.logger.debug(
       `Fetching weather snapshots page: ${page}, limit: ${limit}`,
     );
 
     const { data, total } = await this.weatherRepository.findAll(page, limit);
 
-    this.logger.log(`${data.length} fetched successfully`);
+    const paginationData = data.map(
+      (snapshot) => new WeatherSnapshotResponseDto(snapshot),
+    );
 
-    return new PaginationResponse(
+    this.logger.log(`${data.length} fetched successfully`);
+    return new PaginationResponseDTO(
       StatusCode.SUCCESS,
       'Fetched successfully',
-      data.map((snapshot) => new WeatherSnapshotResponseDto(snapshot)),
+      paginationData,
       total,
       page,
       limit,
     );
   }
 
-  async findOne(id: Types.ObjectId) {
+  async findOne(id: Types.ObjectId): Promise<WeatherSnapshotResponseDto> {
     this.logger.debug(`Fetching weather snapshot with id: ${id.toString()}`);
 
     const snapshot = await this.weatherRepository.findOne(id);
@@ -54,7 +66,7 @@ export class WeatherService {
     return new WeatherSnapshotResponseDto(snapshot);
   }
 
-  async remove(id: Types.ObjectId) {
+  async remove(id: Types.ObjectId): Promise<string> {
     this.logger.debug(`Removing weather snapshot with id: ${id.toString()}`);
 
     const removed = await this.weatherRepository.remove(id);
@@ -66,6 +78,6 @@ export class WeatherService {
     this.logger.log(
       `Weather snapshot with id: ${id.toString()} removed successfully`,
     );
-    return { message: 'Snapshot removed' };
+    return 'Snapshot removed';
   }
 }

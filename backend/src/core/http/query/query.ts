@@ -1,4 +1,5 @@
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export enum SortDirection {
   ASC = 'asc',
@@ -7,10 +8,14 @@ export enum SortDirection {
 
 export class SearchParams {
   @IsInt()
-  page: number = 1;
+  @Min(1)
+  @Type(() => Number)
+  page: number;
 
   @IsInt()
-  limit: number = 10;
+  @Min(1)
+  @Type(() => Number)
+  limit: number;
 
   @IsOptional()
   @IsString()
