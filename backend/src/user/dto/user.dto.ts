@@ -9,11 +9,12 @@ import {
 } from 'class-validator';
 import { Types } from 'mongoose';
 import { RoleDto } from './role.dto';
-import { Exclude } from 'class-transformer';
+import { Exclude, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UserDto {
   @IsMongoIdObject()
+  @Type(() => String)
   @ApiProperty({ type: String, description: "user's unique identifier" })
   readonly id: Types.ObjectId;
 
@@ -30,7 +31,8 @@ export class UserDto {
   })
   readonly name?: string;
 
-  @ValidateNested()
+  @ValidateNested({ each: true })
+  @Type(() => RoleDto)
   @IsArray()
   @ApiProperty({
     type: RoleDto,
@@ -49,7 +51,7 @@ export class UserDto {
     this.id = user._id;
     this.name = user.name;
     this.email = user.email;
-    this.roles = user.roles.map((role) => new RoleDto(role));
+    this.roles = user.roles ? user.roles.map((role) => new RoleDto(role)) : [];
     this.password = user.password;
     this.status = user.status;
   }

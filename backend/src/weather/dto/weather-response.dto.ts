@@ -3,9 +3,11 @@ import { IsBoolean, IsDate, IsNumber } from 'class-validator';
 import { Types } from 'mongoose';
 import { IsMongoIdObject } from 'src/common/mongoid.validation';
 import { WeatherSnapshotDto } from './create-weather-snapshot.dto';
+import { Type } from 'class-transformer';
 
 export class WeatherSnapshotResponseDto {
   @IsMongoIdObject()
+  @Type(() => String)
   @ApiProperty({ description: 'Unique identifier', type: String })
   public readonly id: Types.ObjectId;
 

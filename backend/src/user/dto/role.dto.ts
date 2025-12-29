@@ -3,10 +3,11 @@ import { Role, RoleCode } from '@auth/schemas/role.schema';
 import { IsNotEmpty } from 'class-validator';
 import { IsMongoIdObject } from '@common/mongoid.validation';
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
+import { Exclude, Type } from 'class-transformer';
 
 export class RoleDto {
   @IsMongoIdObject()
+  @Type(() => String)
   @ApiProperty({ description: 'Unique identifier', type: String })
   readonly id: Types.ObjectId;
 
