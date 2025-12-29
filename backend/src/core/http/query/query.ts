@@ -13,7 +13,7 @@ export class SearchParams {
   page: number;
 
   @IsInt()
-  @Min(10)
+  @Min(1)
   @Type(() => Number)
   limit: number;
 

@@ -60,7 +60,7 @@ export class AuthService {
       throw new InternalServerErrorException();
     }
 
-    const password = await hash(signUpBasicDto.password, 5);
+    const password = await hash(signUpBasicDto.password, 10);
 
     const createdUserDto = await this.userService.create({
       ...signUpBasicDto,

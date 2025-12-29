@@ -56,8 +56,8 @@ export class ApikeyGuard implements CanActivate {
     request.apiKey = apiKey;
 
     for (const askedPermission of permissions) {
-      for (const allowedPemission of apiKey.permissions) {
-        if (allowedPemission === askedPermission) return true;
+      for (const allowedPermission of apiKey.permissions) {
+        if (allowedPermission === askedPermission) return true;
       }
     }
 

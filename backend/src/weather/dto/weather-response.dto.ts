@@ -12,9 +12,11 @@ export class WeatherSnapshotResponseDto {
   public readonly id: Types.ObjectId;
 
   @IsDate()
+  @ApiProperty()
   public readonly time: Date;
 
   @IsNumber()
+  @ApiProperty()
   public readonly interval: number;
 
   @IsNumber()

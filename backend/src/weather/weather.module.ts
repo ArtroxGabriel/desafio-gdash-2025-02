@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   WeatherSnapshot,
@@ -16,6 +15,6 @@ import { WeatherService } from './weather.service';
     ]),
   ],
   controllers: [WeatherController],
-  providers: [ConfigService, WeatherService, WeatherRepository],
+  providers: [WeatherService, WeatherRepository],
 })
 export class WeatherModule {}
