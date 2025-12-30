@@ -27,7 +27,7 @@ export class ExceptionHandler implements ExceptionFilter {
   private readonly logger = new Logger(ExceptionHandler.name);
 
   constructor(private readonly configService: ConfigService) {}
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: Error, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -38,6 +38,10 @@ export class ExceptionHandler implements ExceptionFilter {
 
     if (exception instanceof TokenExpiredError) {
       return this.handleTokenExpiredError(request, response);
+    }
+
+    if (this.isInstanceOfMongoError(exception)) {
+      return this.handleMongoError(request, response);
     }
 
     return this.handleGenericError(exception, request, response);
@@ -56,6 +60,10 @@ export class ExceptionHandler implements ExceptionFilter {
 
     if (exception instanceof InternalServerErrorException) {
       this.logger.error(message, exception.stack);
+    } else {
+      this.logger.warn(
+        `HTTP Exception - Status: ${status}, Message: ${message}`,
+      );
     }
 
     if (exception instanceof UnauthorizedException) {
@@ -74,6 +82,8 @@ export class ExceptionHandler implements ExceptionFilter {
   }
 
   private handleTokenExpiredError(request: Request, response: Response) {
+    this.logger.warn(`Token Expired - URL: ${request.url}`);
+
     response.appendHeader('instruction', 'refresh_token');
 
     return response.status(HttpStatus.UNAUTHORIZED).json({
@@ -85,7 +95,7 @@ export class ExceptionHandler implements ExceptionFilter {
   }
 
   private handleGenericError(
-    exception: unknown,
+    exception: Error,
     request: Request,
     response: Response,
   ) {
@@ -105,6 +115,19 @@ export class ExceptionHandler implements ExceptionFilter {
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: StatusCode.FAILURE,
       message: clientMessage,
+      errors: undefined,
+      url: request.url,
+    });
+  }
+
+  private isInstanceOfMongoError(exception: Error): boolean {
+    return exception.name === 'MongoServerError';
+  }
+
+  private handleMongoError(request: Request, response: Response) {
+    return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      statusCode: StatusCode.FAILURE,
+      message: 'something goes wrong',
       errors: undefined,
       url: request.url,
     });

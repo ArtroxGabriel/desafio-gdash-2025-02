@@ -5,6 +5,7 @@ import {
   Body,
   Controller,
   Delete,
+  Logger,
   Post,
   Request,
   UnauthorizedException,
@@ -22,6 +23,7 @@ import { UserTokensDto } from './dto/user-tokens.dto';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(private readonly authService: AuthService) {}
 
   @Public()
@@ -30,7 +32,14 @@ export class AuthController {
     type: UserAuthDto,
   })
   async register(@Body() signUpDto: SignUpBasicDto) {
-    return this.authService.signUp(signUpDto);
+    this.logger.log('Starting register user process');
+
+    const result = await this.authService.signUp(signUpDto);
+    if (isFail(result)) {
+      throw mapToHttpException(result.error);
+    }
+
+    return result.value;
   }
 
   @Public()
@@ -39,13 +48,27 @@ export class AuthController {
     type: UserAuthDto,
   })
   async login(@Body() signInDto: SignInBasicDto) {
-    return this.authService.signIn(signInDto);
+    this.logger.log('Starting login user process');
+    const result = await this.authService.signIn(signInDto);
+    if (isFail(result)) {
+      throw mapToHttpException(result.error);
+    }
+
+    return result.value;
   }
 
   @Delete('logout')
   @ApiBearerAuth(HeaderName.AUTHORIZATION)
   async signOut(@Request() request: ProtectedRequest) {
-    return this.authService.signOut(request.keystore);
+    this.logger.log(
+      'Starting sign out user process for user: ' + request.user.email,
+    );
+    const result = await this.authService.signOut(request.keystore);
+    if (isFail(result)) {
+      throw mapToHttpException(result.error);
+    }
+
+    return result.value;
   }
 
   @Public()
@@ -54,6 +77,7 @@ export class AuthController {
     @Request() request: ProtectedRequest,
     @Body() tokenRefreshDto: TokenRefreshDto,
   ): Promise<UserTokensDto> {
+    this.logger.log('Starting token refresh process');
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
     if (type !== 'Bearer' || token === undefined)
       throw new UnauthorizedException();

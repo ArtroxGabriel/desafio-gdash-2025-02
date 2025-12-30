@@ -23,6 +23,18 @@ export class UserService {
     return success(new UserDto(user));
   }
 
+  async findAll(
+    page: number,
+    limit: number,
+  ): Result<{ data: UserDto[]; total: number }, UserError> {
+    this.logger.debug(`Fetching users page: ${page}, limit: ${limit}`);
+
+    const { data, total } = await this.userRepository.findAll(page, limit);
+    const usersDto = data.map((user) => new UserDto(user));
+
+    return success({ data: usersDto, total });
+  }
+
   async findById(id: Types.ObjectId): Result<UserDto, UserError> {
     this.logger.log(`Finding user by ID: ${id.toString()}`);
 

@@ -16,6 +16,25 @@ export class UserRepository {
     return { ...created.toObject(), roles: user.roles };
   }
 
+  async findAll(
+    page: number,
+    limit: number,
+  ): Promise<{ data: User[]; total: number }> {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.userModel
+        .find({ status: true })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.userModel.countDocuments().exec(),
+    ]);
+
+    return { data, total };
+  }
+
   async findById(id: Types.ObjectId): Promise<User | null> {
     return this.userModel
       .findOne({ _id: id, status: true })

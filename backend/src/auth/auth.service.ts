@@ -1,4 +1,4 @@
-import { fail, isFail, Result, success } from '@common/result';
+import { fail, isFail, isSuccess, Result, success } from '@common/result';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
@@ -36,7 +36,7 @@ export class AuthService {
     this.logger.log(`Signing up user with email ${signUpBasicDto.email}`);
 
     const userResult = await this.userService.findByEmail(signUpBasicDto.email);
-    if (isFail(userResult)) {
+    if (isSuccess(userResult)) {
       this.logger.warn(
         `User with email ${signUpBasicDto.email} already exists`,
       );
@@ -135,13 +135,13 @@ export class AuthService {
 
     const refreshResult = await this.verifyToken(tokenRefreshDto.refreshToken);
     if (isFail(refreshResult)) {
-      if (refreshResult.error === AuthError.EXPIRED_REFRESH_TOKEN) {
+      if (refreshResult.error === AuthError.EXPIRED_ACCESS_TOKEN) {
         this.logger.warn('Refresh token expired during token refresh');
-        return fail(AuthError.EXPIRED_REFRESH_TOKEN);
+        return fail(AuthError.EXPIRED_ACCESS_TOKEN);
       }
 
       this.logger.warn('Invalid refresh token during token refresh');
-      return fail(AuthError.INVALID_REFRESH_TOKEN);
+      return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
 
     const refreshTokenPayload = refreshResult.value;
@@ -149,7 +149,7 @@ export class AuthService {
     const validRefreshToken = this.validatePayload(refreshTokenPayload);
     if (!validRefreshToken) {
       this.logger.warn('Invalid refresh token payload during token refresh');
-      return fail(AuthError.INVALID_REFRESH_TOKEN);
+      return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
 
     if (accessTokenPayload.sub !== refreshTokenPayload.sub) {
@@ -312,7 +312,7 @@ export class AuthService {
     );
     if (keystore === null) {
       this.logger.warn('Keystore not found for provided tokens');
-      return fail(AuthError.KEYSTORE_NOT_FOUND);
+      return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
 
     return success(keystore);
@@ -328,7 +328,7 @@ export class AuthService {
       this.logger.warn(
         'Keystore not found for user id: ' + clientDto.id.toString(),
       );
-      return fail(AuthError.KEYSTORE_NOT_FOUND);
+      return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
 
     return success(keystore);
