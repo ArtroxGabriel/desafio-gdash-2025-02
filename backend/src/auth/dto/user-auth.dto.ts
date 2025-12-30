@@ -15,10 +15,10 @@ export class UserAuthDto {
   @Type(() => UserTokensDto)
   @IsNotEmptyObject()
   @ApiProperty()
-  readonly token: UserTokensDto;
+  readonly tokens: UserTokensDto;
 
   constructor(user: UserDto, tokens: UserTokensDto) {
     this.user = user;
-    this.token = tokens;
+    this.tokens = tokens;
   }
 }

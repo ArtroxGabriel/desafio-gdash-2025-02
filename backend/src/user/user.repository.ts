@@ -66,20 +66,14 @@ export class UserRepository {
       .exec();
   }
 
-  async delete(user: User): Promise<boolean> {
-    const deletedUser = await this.userModel
-      .findByIdAndDelete(user._id)
-      .lean()
-      .exec();
-    return Boolean(deletedUser);
+  async delete(user: User) {
+    return this.userModel.findByIdAndDelete(user._id).lean().exec();
   }
 
-  async deactivate(id: Types.ObjectId): Promise<boolean> {
-    const updatedUser = await this.userModel
+  async deactivate(id: Types.ObjectId) {
+    return this.userModel
       .findByIdAndUpdate({ _id: id }, { status: false })
       .lean()
       .exec();
-
-    return Boolean(updatedUser);
   }
 }

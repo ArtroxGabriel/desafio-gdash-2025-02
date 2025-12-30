@@ -1,5 +1,6 @@
+import { isFail } from '@common/result';
 import { HeaderName } from '@core/http/header';
-import { type ProtectedRequest } from '@core/http/request';
+import type { ProtectedRequest } from '@core/http/request';
 import {
   Body,
   Controller,
@@ -9,6 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
+import { mapToHttpException } from './auth.error';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { ApiKeyDto } from './dto/api-key.dto';
@@ -56,10 +58,15 @@ export class AuthController {
     if (type !== 'Bearer' || token === undefined)
       throw new UnauthorizedException();
 
-    const { token: tokens } = await this.authService.refreshToken(
+    const refreshTokenResult = await this.authService.refreshToken(
       tokenRefreshDto,
       token,
     );
+    if (isFail(refreshTokenResult)) {
+      throw mapToHttpException(refreshTokenResult.error);
+    }
+
+    const tokens = refreshTokenResult.value.tokens;
     return tokens;
   }
 
@@ -69,6 +76,13 @@ export class AuthController {
     type: ApiKeyDto,
   })
   async createApiKey(@Request() request: ProtectedRequest): Promise<ApiKeyDto> {
-    return this.authService.createApiKey(request.user.email);
+    const apikeyResult = await this.authService.createApiKey(
+      request.user.email,
+    );
+    if (isFail(apikeyResult)) {
+      throw mapToHttpException(apikeyResult.error);
+    }
+
+    return apikeyResult.value;
   }
 }
