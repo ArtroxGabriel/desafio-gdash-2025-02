@@ -1,11 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { fail, isFail, Result, success } from '@common/result';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { UserDto } from '@user/dto/user.dto';
@@ -15,7 +9,9 @@ import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { Types } from 'mongoose';
 import { TokenConfig, TokenConfigName } from 'src/config/token.config';
+import { AuthError } from './auth.error';
 import { AuthRepository } from './auth.repository';
+import { ApiKeyDto } from './dto/api-key.dto';
 import { SignInBasicDto } from './dto/signin-basic.dto';
 import { TokenRefreshDto } from './dto/token-refresh.dto';
 import { UserAuthDto } from './dto/user-auth.dto';
@@ -24,7 +20,6 @@ import { ApiKey, Permission } from './schemas/apikey.schema';
 import { Keystore } from './schemas/keystore.schema';
 import { RoleCode } from './schemas/role.schema';
 import { TokenPayload } from './token/token.payload';
-import { ApiKeyDto } from './dto/api-key.dto';
 
 @Injectable()
 export class AuthService {
@@ -37,58 +32,61 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async signUp(signUpBasicDto: SignInBasicDto): Promise<UserAuthDto> {
+  async signUp(signUpBasicDto: SignInBasicDto): Result<UserAuthDto, AuthError> {
     this.logger.log(`Signing up user with email ${signUpBasicDto.email}`);
 
-    try {
-      const user = await this.userService.findByEmail(signUpBasicDto.email);
-      if (user) {
-        this.logger.warn(
-          `User with email ${signUpBasicDto.email} already exists`,
-        );
-        throw new BadRequestException('User already exists');
-      }
-    } catch (error) {
-      if (!(error instanceof NotFoundException)) {
-        throw error;
-      }
+    const userResult = await this.userService.findByEmail(signUpBasicDto.email);
+    if (isFail(userResult)) {
+      this.logger.warn(
+        `User with email ${signUpBasicDto.email} already exists`,
+      );
+      return fail(AuthError.USER_ALREADY_EXISTS);
     }
 
     const role = await this.authRepository.findRole(RoleCode.VIEWER);
-    if (!role) {
+    if (role === null) {
       this.logger.error(`Role ${RoleCode.VIEWER} not found`);
-      throw new InternalServerErrorException();
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
     }
 
     const password = await hash(signUpBasicDto.password, 10);
 
-    const createdUserDto = await this.userService.create({
+    const createUserResult = await this.userService.create({
       ...signUpBasicDto,
       password: password,
       roles: [role],
     });
 
-    if (!createdUserDto) throw new InternalServerErrorException();
+    if (isFail(createUserResult)) {
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
+    }
 
-    const tokensDto = await this.createToken(createdUserDto);
+    const createUserDto = createUserResult.value;
+    const tokenResult = await this.createToken(createUserDto);
+    if (isFail(tokenResult)) {
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
+    }
+    const tokenDto = tokenResult.value;
 
     this.logger.log(
       `User with email ${signUpBasicDto.email} signed up successfully`,
     );
-    return new UserAuthDto(createdUserDto, tokensDto);
+    return success(new UserAuthDto(createUserDto, tokenDto));
   }
 
-  async signIn(signInBasicDto: SignInBasicDto): Promise<UserAuthDto> {
-    const userDto = await this.userService.findByEmail(signInBasicDto.email);
-    if (!userDto) {
+  async signIn(signInBasicDto: SignInBasicDto): Result<UserAuthDto, AuthError> {
+    const result = await this.userService.findByEmail(signInBasicDto.email);
+    if (isFail(result)) {
       this.logger.warn(`User with email ${signInBasicDto.email} not found`);
-      throw new UnauthorizedException('Invalid credentials');
+      return fail(AuthError.INVALID_CREDENTIALS);
     }
+
+    const userDto = result.value;
     if (!userDto.password) {
       this.logger.warn(
         `User with email ${signInBasicDto.email} has no password set`,
       );
-      throw new UnauthorizedException('Invalid credentials');
+      return fail(AuthError.INVALID_CREDENTIALS);
     }
 
     const match = await compare(signInBasicDto.password, userDto.password);
@@ -96,85 +94,96 @@ export class AuthService {
       this.logger.warn(
         `Invalid password for user with email ${signInBasicDto.email}`,
       );
-      throw new UnauthorizedException('Invalid credentials');
+      return fail(AuthError.INVALID_CREDENTIALS);
     }
 
-    const tokenDto = await this.createToken(userDto);
+    const tokenResult = await this.createToken(userDto);
+    if (isFail(tokenResult)) {
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
+    }
+    const tokenDto = tokenResult.value;
 
-    return new UserAuthDto(userDto, tokenDto);
+    return success(new UserAuthDto(userDto, tokenDto));
   }
 
-  async signOut(keystore: Keystore): Promise<string> {
+  async signOut(keystore: Keystore): Result<string, AuthError> {
     await this.authRepository.removeKeystore(keystore._id);
-    return 'Logout successful';
+    return success('Logout successful');
   }
 
-  async refreshToken(tokenRefreshDto: TokenRefreshDto, accessToken: string) {
+  async refreshToken(
+    tokenRefreshDto: TokenRefreshDto,
+    accessToken: string,
+  ): Result<UserAuthDto, AuthError> {
     const accessTokenPayload = this.decodeToken(accessToken);
     const validAccessToken = this.validatePayload(accessTokenPayload);
     if (!validAccessToken) {
       this.logger.warn('Invalid access token payload during token refresh');
-      throw new UnauthorizedException('Invalid Access Token');
+      return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
 
-    const userDto = await this.userService.findById(
+    const userResult = await this.userService.findById(
       new Types.ObjectId(accessTokenPayload.sub),
     );
-    if (!userDto) {
+    if (isFail(userResult)) {
       this.logger.warn(
         `User with id ${accessTokenPayload.sub} not found during token refresh`,
       );
-      throw new UnauthorizedException('User not registered');
+      return fail(AuthError.USER_NOT_REGISTERED);
     }
+    const userDto = userResult.value;
 
-    const refreshTokenPayload = await this.verifyToken(
-      tokenRefreshDto.refreshToken,
-    ).catch((e: Error) => {
-      if (e instanceof TokenExpiredError) {
+    const refreshResult = await this.verifyToken(tokenRefreshDto.refreshToken);
+    if (isFail(refreshResult)) {
+      if (refreshResult.error === AuthError.EXPIRED_REFRESH_TOKEN) {
         this.logger.warn('Refresh token expired during token refresh');
-        throw new UnauthorizedException('Refresh Token Expired');
+        return fail(AuthError.EXPIRED_REFRESH_TOKEN);
       }
 
       this.logger.warn('Invalid refresh token during token refresh');
-      throw new UnauthorizedException('Invalid Refresh Token');
-    });
+      return fail(AuthError.INVALID_REFRESH_TOKEN);
+    }
+
+    const refreshTokenPayload = refreshResult.value;
 
     const validRefreshToken = this.validatePayload(refreshTokenPayload);
     if (!validRefreshToken) {
       this.logger.warn('Invalid refresh token payload during token refresh');
-      throw new UnauthorizedException('Invalid Refresh Token');
+      return fail(AuthError.INVALID_REFRESH_TOKEN);
     }
 
     if (accessTokenPayload.sub !== refreshTokenPayload.sub) {
       this.logger.warn(
         'Access token and refresh token subject mismatch during token refresh',
       );
-      throw new UnauthorizedException('Token Subject Mismatch');
+      return fail(AuthError.TOKEN_SUBJECT_MISMATCH);
     }
 
-    const keystore = await this.findTokensKeystore(
+    const keystoreResult = await this.findTokensKeystore(
       userDto,
       accessTokenPayload.prm,
       refreshTokenPayload.prm,
     );
-    if (!keystore) {
-      this.logger.warn(
-        'Keystore not found for provided tokens during token refresh',
-      );
-      throw new UnauthorizedException('Invalid access token');
+    if (isFail(keystoreResult)) {
+      return keystoreResult;
     }
+    const keystore = keystoreResult.value;
 
     await this.authRepository.removeKeystore(keystore._id);
 
-    const tokenDto = await this.createToken(userDto);
+    const tokenResult = await this.createToken(userDto);
+    if (isFail(tokenResult)) {
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
+    }
+    const tokenDto = tokenResult.value;
 
     this.logger.log(
       `Token refreshed successfully for user with id ${userDto.id.toString()}`,
     );
-    return new UserAuthDto(userDto, tokenDto);
+    return success(new UserAuthDto(userDto, tokenDto));
   }
 
-  private async createToken(user: UserDto) {
+  private async createToken(user: UserDto): Result<UserTokensDto, AuthError> {
     this.logger.log(`Creating token for user with id ${user.id.toString()}`);
 
     const tokenConfig =
@@ -183,16 +192,16 @@ export class AuthService {
     const accessTokenKey = randomBytes(64).toString('hex');
     const refreshTokenKey = randomBytes(64).toString('hex');
 
-    const keystore = await this.createKeystore(
+    const keystoreResult = await this.createKeystore(
       user,
       accessTokenKey,
       refreshTokenKey,
     );
-    if (!keystore) {
+    if (isFail(keystoreResult)) {
       this.logger.error(
         `Failed to create keystore for user with id ${user.id.toString()}`,
       );
-      throw new InternalServerErrorException();
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
     }
 
     const accessTokenPayload = new TokenPayload(
@@ -211,16 +220,24 @@ export class AuthService {
       tokenConfig.refreshTokenValidity,
     );
 
-    const accessToken = await this.signToken(accessTokenPayload);
-    if (!accessToken) throw new InternalServerErrorException();
+    const accessTokenResult = await this.signToken(accessTokenPayload);
+    if (isFail(accessTokenResult)) {
+      return accessTokenResult;
+    }
+    const accessToken = accessTokenResult.value;
 
-    const refreshToken = await this.signToken(refreshTokenPayload);
-    if (!refreshToken) throw new InternalServerErrorException();
+    const refreshTokenResult = await this.signToken(refreshTokenPayload);
+    if (isFail(refreshTokenResult)) {
+      return refreshTokenResult;
+    }
+    const refreshToken = refreshTokenResult.value;
 
-    return new UserTokensDto({
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-    });
+    return success(
+      new UserTokensDto({
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      }),
+    );
   }
 
   validatePayload(payload: TokenPayload) {
@@ -241,16 +258,25 @@ export class AuthService {
     return true;
   }
 
-  private async signToken(payload: TokenPayload) {
-    return this.jwtService.signAsync({ ...payload });
+  private async signToken(payload: TokenPayload): Result<string, AuthError> {
+    try {
+      const token = await this.jwtService.signAsync({ ...payload });
+      return success(token);
+    } catch (error) {
+      this.logger.error('Error signing token: ' + error);
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
+    }
   }
 
-  async verifyToken(token: string) {
+  async verifyToken(token: string): Result<TokenPayload, AuthError> {
     try {
-      return this.jwtService.verifyAsync<TokenPayload>(token);
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token);
+      return success(payload);
     } catch (error) {
-      if (error instanceof TokenExpiredError) throw error;
-      throw new UnauthorizedException('Invalid Access Token');
+      if (error instanceof TokenExpiredError) {
+        return fail(AuthError.EXPIRED_ACCESS_TOKEN);
+      }
+      return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
   }
 
@@ -262,35 +288,63 @@ export class AuthService {
     client: UserDto,
     primaryKey: string,
     secondaryKey: string,
-  ): Promise<Keystore> {
-    return this.authRepository.createKeystore(
-      new User(client),
+  ): Result<Keystore, AuthError> {
+    const clientModel = new User(client);
+    const keystoreCreated = await this.authRepository.createKeystore(
+      clientModel,
       primaryKey,
       secondaryKey,
     );
+
+    return success(keystoreCreated);
   }
 
   async findTokensKeystore(
     client: UserDto,
     primaryKey: string,
     secondaryKey: string,
-  ): Promise<Keystore | null> {
-    return this.authRepository.findTokensKeystore(
-      new User(client),
+  ): Result<Keystore, AuthError> {
+    const clientModel = new User(client);
+    const keystore = await this.authRepository.findTokensKeystore(
+      clientModel,
       primaryKey,
       secondaryKey,
     );
+    if (keystore === null) {
+      this.logger.warn('Keystore not found for provided tokens');
+      return fail(AuthError.KEYSTORE_NOT_FOUND);
+    }
+
+    return success(keystore);
   }
 
-  async findKeystore(client: UserDto, key: string): Promise<Keystore | null> {
-    return this.authRepository.findKeystore(new User(client), key);
+  async findKeystore(
+    clientDto: UserDto,
+    key: string,
+  ): Result<Keystore, AuthError> {
+    const clientModel = new User(clientDto);
+    const keystore = await this.authRepository.findKeystore(clientModel, key);
+    if (keystore === null) {
+      this.logger.warn(
+        'Keystore not found for user id: ' + clientDto.id.toString(),
+      );
+      return fail(AuthError.KEYSTORE_NOT_FOUND);
+    }
+
+    return success(keystore);
   }
 
-  async findApiKey(key: string): Promise<ApiKey | null> {
-    return this.authRepository.findApiKey(key);
+  async findApiKey(key: string): Result<ApiKey, AuthError> {
+    const apikey = await this.authRepository.findApiKey(key);
+    if (apikey === null) {
+      this.logger.warn('API key not found for key: ' + key);
+      return fail(AuthError.NOT_FOUND);
+    }
+
+    return success(apikey);
   }
 
-  async createApiKey(email: string): Promise<ApiKeyDto> {
+  async createApiKey(email: string): Result<ApiKeyDto, AuthError> {
     const secureKey = randomBytes(32).toString('hex');
 
     const apiKey = await this.authRepository.createApiKey({
@@ -301,10 +355,16 @@ export class AuthService {
     });
 
     this.logger.log('api key created for user: ' + email);
-    return new ApiKeyDto(apiKey);
+    return success(new ApiKeyDto(apiKey));
   }
 
-  async deleteApiKey(apikey: ApiKey): Promise<ApiKey | null> {
-    return this.authRepository.deleteApiKey(apikey);
+  async deleteApiKey(apikey: ApiKey): Result<ApiKey, AuthError> {
+    const apikeyDeleted = await this.authRepository.deleteApiKey(apikey);
+    if (apikeyDeleted === null) {
+      this.logger.warn('Failed to delete api key: ' + apikey._id.toString());
+      return fail(AuthError.INTERNAL_SERVER_ERROR);
+    }
+
+    return success(apikeyDeleted);
   }
 }

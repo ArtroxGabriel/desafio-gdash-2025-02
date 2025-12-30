@@ -1,5 +1,7 @@
+import { AuthError, mapToHttpException } from '@auth/auth.error';
 import { AuthService } from '@auth/auth.service';
 import { IS_PUBLIC_KEY } from '@auth/decorators/public.decorator';
+import { isFail } from '@common/result';
 import { ProtectedRequest } from '@core/http/request';
 import {
   CanActivate,
@@ -38,29 +40,38 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    const payload = await this.authService.verifyToken(token);
+    const payloadResult = await this.authService.verifyToken(token);
+    if (isFail(payloadResult)) {
+      throw mapToHttpException(payloadResult.error);
+    }
+    const payload = payloadResult.value;
+
     const valid = this.authService.validatePayload(payload);
     if (!valid) {
       this.logger.warn('Invalid access token payload');
-      throw new UnauthorizedException('Invalid Access Token');
+      throw mapToHttpException(AuthError.INVALID_ACCESS_TOKEN);
     }
 
-    const userDto = await this.userService.findById(
+    const userResult = await this.userService.findById(
       new Types.ObjectId(payload.sub),
     );
-    if (!userDto) {
+    if (isFail(userResult)) {
       this.logger.warn(`User not found for ID: ${payload.sub}`);
-      throw new UnauthorizedException('User not registered');
+      throw mapToHttpException(AuthError.USER_NOT_REGISTERED);
     }
+    const userDto = userResult.value;
 
-    const keystore = await this.authService.findKeystore(userDto, payload.prm);
-    if (!keystore) {
+    const keystoreResult = await this.authService.findKeystore(
+      userDto,
+      payload.prm,
+    );
+    if (isFail(keystoreResult)) {
       this.logger.warn('No keystore found for the provided access token');
-      throw new UnauthorizedException('Invalid Access Token');
+      throw mapToHttpException(keystoreResult.error);
     }
 
     request.user = new User(userDto);
-    request.keystore = keystore;
+    request.keystore = keystoreResult.value;
 
     return true;
   }

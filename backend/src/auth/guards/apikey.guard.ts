@@ -2,6 +2,7 @@ import { AuthService } from '@auth/auth.service';
 import { Permissions } from '@auth/decorators/permissions.decorator';
 import { VERIFY_API_KEY } from '@auth/decorators/public.decorator';
 import { Permission } from '@auth/schemas/apikey.schema';
+import { isFail } from '@common/result';
 import { HeaderName } from '@core/http/header';
 import { PublicRequest } from '@core/http/request';
 import {
@@ -47,12 +48,13 @@ export class ApikeyGuard implements CanActivate {
       throw new ForbiddenException();
     }
 
-    const apiKey = await this.authService.findApiKey(key);
-    if (!apiKey) {
+    const apiKeyResult = await this.authService.findApiKey(key);
+    if (isFail(apiKeyResult)) {
       this.logger.warn('Invalid API key, denying access');
       throw new ForbiddenException();
     }
 
+    const apiKey = apiKeyResult.value;
     request.apiKey = apiKey;
 
     for (const askedPermission of permissions) {

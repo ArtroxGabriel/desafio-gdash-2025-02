@@ -1,7 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { fail, Result, success } from '@common/result';
+import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { UserDto } from './dto/user.dto';
 import { User } from './schemas/user.schema';
+import { UserError } from './user.error';
 import { UserRepository } from './user.repository';
 
 @Injectable()
@@ -10,64 +12,66 @@ export class UserService {
 
   constructor(private readonly userRepository: UserRepository) {}
 
-  async create(param: Omit<User, '_id' | 'status'>): Promise<UserDto> {
+  async create(
+    param: Omit<User, '_id' | 'status'>,
+  ): Result<UserDto, UserError> {
     this.logger.log('Creating a new user');
 
     const user = await this.userRepository.create(param);
 
     this.logger.log(`User created with ID: ${user._id.toString()}`);
-    return new UserDto(user);
+    return success(new UserDto(user));
   }
 
-  async findById(id: Types.ObjectId): Promise<UserDto> {
+  async findById(id: Types.ObjectId): Result<UserDto, UserError> {
     this.logger.log(`Finding user by ID: ${id.toString()}`);
 
     const user = await this.userRepository.findById(id);
-    if (!user) {
+    if (user === null) {
       this.logger.warn(`User not found with ID: ${id.toString()}`);
-      throw new NotFoundException('User not found');
+      return fail(UserError.NOT_FOUND);
     }
 
     this.logger.log(`User found with ID: ${id.toString()}`);
-    return new UserDto(user);
+    return success(new UserDto(user));
   }
 
-  async findByEmail(email: string): Promise<UserDto> {
+  async findByEmail(email: string): Result<UserDto, UserError> {
     this.logger.log(`Finding user by email: ${email}`);
 
     const user = await this.userRepository.findByEmail(email);
-    if (!user) {
+    if (user === null) {
       this.logger.warn(`User not found with email: ${email}`);
-      throw new NotFoundException('User not found');
+      return fail(UserError.NOT_FOUND);
     }
 
     this.logger.log(`User found with email: ${email}`);
-    return new UserDto(user);
+    return success(new UserDto(user));
   }
 
-  async findPrivateProfile(user: User): Promise<UserDto> {
+  async findPrivateProfile(user: User): Result<UserDto, UserError> {
     this.logger.log(
       `Finding private profile for user with ID ${user._id.toString()} `,
     );
 
     const profile = await this.userRepository.findPrivateProfile(user);
-    if (!profile) {
+    if (profile === null) {
       this.logger.warn(
         `Private profile not found for user with ID ${user._id.toString()}`,
       );
-      throw new NotFoundException('User not found');
+      return fail(UserError.NOT_FOUND);
     }
 
     this.logger.log(
       `Private profile found for user with ID ${user._id.toString()}`,
     );
-    return new UserDto(profile);
+    return success(new UserDto(profile));
   }
 
   async updateProfile(
     userId: Types.ObjectId,
     updateData: Partial<User>,
-  ): Promise<UserDto> {
+  ): Result<UserDto, UserError> {
     this.logger.log(`Updating profile for user with ID ${userId.toString()}`);
 
     const updatedUser = await this.userRepository.updateInfo({
@@ -75,40 +79,40 @@ export class UserService {
       _id: userId,
     });
 
-    if (!updatedUser) {
+    if (updatedUser === null) {
       this.logger.warn(
         `Failed to update profile for user with ID ${userId.toString()}`,
       );
-      throw new NotFoundException('User not found');
+      return fail(UserError.NOT_FOUND);
     }
 
     this.logger.log(`Profile updated for user with ID ${userId.toString()}`);
-    return new UserDto(updatedUser);
+    return success(new UserDto(updatedUser));
   }
 
-  async deleteUser(user: User): Promise<string> {
+  async deleteUser(user: User): Result<unknown, UserError> {
     this.logger.log(`Deleting user with ID ${user._id.toString()}`);
 
     const userDeleted = await this.userRepository.delete(user);
-    if (!userDeleted) {
+    if (userDeleted === null) {
       this.logger.warn(`User not found with ID ${user._id.toString()}`);
-      throw new NotFoundException('User not found');
+      return fail(UserError.NOT_FOUND);
     }
 
     this.logger.log(`User deleted with ID ${user._id.toString()}`);
-    return 'User successfully deleted';
+    return success(null);
   }
 
-  async deactivateUser(userId: Types.ObjectId): Promise<string> {
+  async deactivateUser(userId: Types.ObjectId): Result<unknown, UserError> {
     this.logger.log(`Deactivating user with ID ${userId.toString()}`);
 
     const userDeactivated = await this.userRepository.deactivate(userId);
-    if (!userDeactivated) {
+    if (userDeactivated === null) {
       this.logger.warn(`User not found with ID ${userId.toString()}`);
-      throw new NotFoundException('User not found');
+      return fail(UserError.NOT_FOUND);
     }
 
     this.logger.log(`User deactivated with ID ${userId.toString()}`);
-    return 'User successfully deactivated';
+    return success(null);
   }
 }
