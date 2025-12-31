@@ -7,8 +7,8 @@ import {
 import { Types } from 'mongoose';
 
 @Injectable()
-export class MongoIdTransformer implements PipeTransform<any> {
-  transform(value: any, metadata: ArgumentMetadata): any {
+export class MongoIdTransformer implements PipeTransform {
+  transform(value: unknown, metadata: ArgumentMetadata): any {
     if (typeof value !== 'string') return value;
 
     if (metadata.metatype?.name === 'ObjectId') {

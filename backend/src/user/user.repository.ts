@@ -59,9 +59,9 @@ export class UserRepository {
       .exec();
   }
 
-  async findPrivateProfile(user: User): Promise<User | null> {
+  async findPrivateProfile(id: Types.ObjectId): Promise<User | null> {
     return this.userModel
-      .findOne({ _id: user._id, status: true })
+      .findOne({ _id: id, status: true })
       .select('+email')
       .populate({
         path: 'roles',

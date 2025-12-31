@@ -66,7 +66,7 @@ export class UserService {
       `Finding private profile for user with ID ${user._id.toString()} `,
     );
 
-    const profile = await this.userRepository.findPrivateProfile(user);
+    const profile = await this.userRepository.findPrivateProfile(user._id);
     if (profile === null) {
       this.logger.warn(
         `Private profile not found for user with ID ${user._id.toString()}`,
