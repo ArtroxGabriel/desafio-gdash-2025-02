@@ -32,6 +32,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "effect": "^3.19.14",
     "mongoose": "^9.0.2",
     "nest-winston": "^1.10.2",
     "passport": "^0.7.0",
@@ -42,6 +43,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.64.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",
