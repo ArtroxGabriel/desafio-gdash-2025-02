@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Effect } from 'effect';
 import { Model, Types } from 'mongoose';
 import { User } from './schemas/user.schema';
+import { UserError } from './user.error';
 
 @Injectable()
 export class UserRepository {
@@ -11,88 +13,163 @@ export class UserRepository {
 
   readonly USER_CRITICAL_DETAIL = '+email +password +roles';
 
-  async create(user: Omit<User, '_id' | 'status'>): Promise<User> {
-    const created = await this.userModel.create(user);
-    return { ...created.toObject(), roles: user.roles };
+  create(user: Omit<User, '_id' | 'status'>): Effect.Effect<User, UserError> {
+    return Effect.tryPromise({
+      try: async () => {
+        const created = await this.userModel.create(user);
+        return { ...created.toObject(), roles: user.roles };
+      },
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }),
+    });
   }
 
-  async findAll(
+  findAll(
     page: number,
     limit: number,
-  ): Promise<{ data: User[]; total: number }> {
+  ): Effect.Effect<{ data: User[]; total: number }, UserError> {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      this.userModel
-        .find({ status: true })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
-      this.userModel.countDocuments().exec(),
+    const allPromisesEffect = Effect.all([
+      Effect.tryPromise({
+        try: () =>
+          this.userModel
+            .find({ status: true })
+            .skip(skip)
+            .limit(limit)
+            .lean()
+            .exec(),
+        catch: (error) =>
+          new UserError({
+            code: 'DATABASE_ERROR',
+            message: String(error),
+          }),
+      }),
+      Effect.tryPromise({
+        try: () => this.userModel.countDocuments().exec(),
+        catch: (error) =>
+          new UserError({
+            code: 'DATABASE_ERROR',
+            message: String(error),
+          }),
+      }),
     ]);
 
-    return { data, total };
+    return allPromisesEffect.pipe(
+      Effect.map(([data, total]) => ({ data, total })),
+    );
   }
 
-  async findById(id: Types.ObjectId): Promise<User | null> {
-    return this.userModel
-      .findOne({ _id: id, status: true })
-      .select(this.USER_CRITICAL_DETAIL)
-      .populate({
-        path: 'roles',
-        match: { status: true },
-      })
-      .lean()
-      .exec();
+  findById(id: Types.ObjectId): Effect.Effect<User | null, UserError> {
+    return Effect.tryPromise({
+      try: () =>
+        this.userModel
+          .findOne({ _id: id, status: true })
+          .select(this.USER_CRITICAL_DETAIL)
+          .populate({
+            path: 'roles',
+            match: { status: true },
+          })
+          .lean()
+          .exec(),
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.userModel
-      .findOne({ email, status: true })
-      .select(this.USER_CRITICAL_DETAIL)
-      .populate({
-        path: 'roles',
-        match: { status: true },
-      })
-      .lean()
-      .exec();
+  findByEmail(email: string): Effect.Effect<User | null, UserError> {
+    return Effect.tryPromise({
+      try: () =>
+        this.userModel
+          .findOne({ email, status: true })
+          .select(this.USER_CRITICAL_DETAIL)
+          .populate({
+            path: 'roles',
+            match: { status: true },
+          })
+          .lean()
+          .exec(),
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 
-  async findPrivateProfile(id: Types.ObjectId): Promise<User | null> {
-    return this.userModel
-      .findOne({ _id: id, status: true })
-      .select('+email')
-      .populate({
-        path: 'roles',
-        match: { status: true },
-        select: { code: 1 },
-      })
-      .lean()
-      .exec();
+  findPrivateProfile(
+    id: Types.ObjectId,
+  ): Effect.Effect<User | null, UserError> {
+    return Effect.tryPromise({
+      try: () =>
+        this.userModel
+          .findOne({ _id: id, status: true })
+          .select('+email')
+          .populate({
+            path: 'roles',
+            match: { status: true },
+            select: { code: 1 },
+          })
+          .lean()
+          .exec(),
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 
-  async updateInfo(user: Partial<User>): Promise<User | null> {
-    return this.userModel
-      .findByIdAndUpdate({ _id: user._id, status: true }, { $set: user })
-      .select('+email')
-      .populate({
-        path: 'roles',
-        match: { status: true },
-        select: { code: 1 },
-      })
-      .lean()
-      .exec();
+  updateInfo(user: Partial<User>): Effect.Effect<User | null, UserError> {
+    return Effect.tryPromise({
+      try: () =>
+        this.userModel
+          .findByIdAndUpdate({ _id: user._id, status: true }, { $set: user })
+          .select('+email')
+          .populate({
+            path: 'roles',
+            match: { status: true },
+            select: { code: 1 },
+          })
+          .lean()
+          .exec(),
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 
-  async delete(user: User) {
-    return this.userModel.findByIdAndDelete(user._id).lean().exec();
+  delete(user: User): Effect.Effect<User | null, UserError> {
+    return Effect.tryPromise({
+      try: () => this.userModel.findByIdAndDelete(user._id).lean().exec(),
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 
-  async deactivate(id: Types.ObjectId) {
-    return this.userModel
-      .findByIdAndUpdate({ _id: id }, { status: false })
-      .lean()
-      .exec();
+  deactivate(id: Types.ObjectId): Effect.Effect<User | null, UserError> {
+    return Effect.tryPromise({
+      try: () =>
+        this.userModel
+          .findByIdAndUpdate({ _id: id }, { status: false })
+          .lean()
+          .exec(),
+      catch: (error) =>
+        new UserError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 }

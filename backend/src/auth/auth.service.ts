@@ -7,6 +7,7 @@ import { User } from '@user/schemas/user.schema';
 import { UserService } from '@user/user.service';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { Effect, Exit } from 'effect';
 import { Types } from 'mongoose';
 import { TokenConfig, TokenConfigName } from 'src/config/token.config';
 import { AuthError } from './auth.error';
@@ -35,8 +36,10 @@ export class AuthService {
   async signUp(signUpBasicDto: SignInBasicDto): Result<UserAuthDto, AuthError> {
     this.logger.log(`Signing up user with email ${signUpBasicDto.email}`);
 
-    const userResult = await this.userService.findByEmail(signUpBasicDto.email);
-    if (isSuccess(userResult)) {
+    const userResultEffect = this.userService.findByEmail(signUpBasicDto.email);
+    const userResult = await Effect.runPromiseExit(userResultEffect);
+
+    if (Exit.isSuccess(userResult)) {
       this.logger.warn(
         `User with email ${signUpBasicDto.email} already exists`,
       );
@@ -51,17 +54,20 @@ export class AuthService {
 
     const password = await hash(signUpBasicDto.password, 10);
 
-    const createUserResult = await this.userService.create({
+    const createUserResultEffect = this.userService.create({
       ...signUpBasicDto,
       password: password,
       roles: [role],
     });
 
-    if (isFail(createUserResult)) {
+    const createUserResult = await Effect.runPromiseExit(
+      createUserResultEffect,
+    );
+    if (Exit.isFailure(createUserResult)) {
       return fail(AuthError.INTERNAL_SERVER_ERROR);
     }
 
-    const createUserDto = createUserResult.value;
+    const createUserDto = createUserResult.value as UserDto;
     const tokenResult = await this.createToken(createUserDto);
     if (isFail(tokenResult)) {
       return fail(AuthError.INTERNAL_SERVER_ERROR);
@@ -75,13 +81,14 @@ export class AuthService {
   }
 
   async signIn(signInBasicDto: SignInBasicDto): Result<UserAuthDto, AuthError> {
-    const result = await this.userService.findByEmail(signInBasicDto.email);
-    if (isFail(result)) {
+    const userResultEffect = this.userService.findByEmail(signInBasicDto.email);
+    const userResult = await Effect.runPromiseExit(userResultEffect);
+    if (Exit.isFailure(userResult)) {
       this.logger.warn(`User with email ${signInBasicDto.email} not found`);
       return fail(AuthError.INVALID_CREDENTIALS);
     }
 
-    const userDto = result.value;
+    const userDto = userResult.value;
     if (!userDto.password) {
       this.logger.warn(
         `User with email ${signInBasicDto.email} has no password set`,
@@ -122,10 +129,11 @@ export class AuthService {
       return fail(AuthError.INVALID_ACCESS_TOKEN);
     }
 
-    const userResult = await this.userService.findById(
+    const userResultEffect = this.userService.findById(
       new Types.ObjectId(accessTokenPayload.sub),
     );
-    if (isFail(userResult)) {
+    const userResult = await Effect.runPromiseExit(userResultEffect);
+    if (Exit.isFailure(userResult)) {
       this.logger.warn(
         `User with id ${accessTokenPayload.sub} not found during token refresh`,
       );

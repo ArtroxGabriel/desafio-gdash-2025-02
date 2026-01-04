@@ -13,8 +13,10 @@ import {
 import { Reflector } from '@nestjs/core';
 import { User } from '@user/schemas/user.schema';
 import { UserService } from '@user/user.service';
+import { Exit } from 'effect';
 import { Request } from 'express';
 import { Types } from 'mongoose';
+import { Effect } from 'effect';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -52,10 +54,11 @@ export class AuthGuard implements CanActivate {
       throw mapToHttpException(AuthError.INVALID_ACCESS_TOKEN);
     }
 
-    const userResult = await this.userService.findById(
+    const userResultEffect = this.userService.findById(
       new Types.ObjectId(payload.sub),
     );
-    if (isFail(userResult)) {
+    const userResult = await Effect.runPromiseExit(userResultEffect);
+    if (Exit.isFailure(userResult)) {
       this.logger.warn(`User not found for ID: ${payload.sub}`);
       throw mapToHttpException(AuthError.USER_NOT_REGISTERED);
     }
