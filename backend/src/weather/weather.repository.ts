@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Effect, pipe } from 'effect';
 import { Model, Types } from 'mongoose';
 import { WeatherSnapshot } from './schemas/weather.schema';
+import { WeatherError } from './weather.error';
 
 @Injectable()
 export class WeatherRepository {
@@ -10,32 +12,77 @@ export class WeatherRepository {
     private readonly weatherModel: Model<WeatherSnapshot>,
   ) {}
 
-  async create(
+  create(
     weatherToCreate: Omit<WeatherSnapshot, '_id'>,
-  ): Promise<WeatherSnapshot> {
-    const createdWeather = await this.weatherModel.create(weatherToCreate);
-    return createdWeather.toObject();
+  ): Effect.Effect<WeatherSnapshot, WeatherError> {
+    return Effect.tryPromise({
+      try: async () => {
+        const createdWeather = await this.weatherModel.create(weatherToCreate);
+        return createdWeather.toObject();
+      },
+      catch: (error) =>
+        new WeatherError({
+          code: 'DATABASE_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }),
+    });
   }
 
-  async findAll(
+  findAll(
     page: number,
     limit: number,
-  ): Promise<{ data: WeatherSnapshot[]; total: number }> {
+  ): Effect.Effect<{ data: WeatherSnapshot[]; total: number }, WeatherError> {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      this.weatherModel.find().skip(skip).limit(limit).lean().exec(),
-      this.weatherModel.countDocuments().exec(),
+    const allPromisesEffect = Effect.all([
+      Effect.tryPromise({
+        try: () =>
+          this.weatherModel.find().skip(skip).limit(limit).lean().exec(),
+        catch: (error) =>
+          new WeatherError({
+            code: 'DATABASE_ERROR',
+            message: String(error),
+          }),
+      }),
+      Effect.tryPromise({
+        try: () => this.weatherModel.countDocuments().exec(),
+        catch: (error) =>
+          new WeatherError({
+            code: 'DATABASE_ERROR',
+            message: String(error),
+          }),
+      }),
     ]);
 
-    return { data, total };
+    return pipe(
+      allPromisesEffect,
+      Effect.map(([data, total]) => ({ data, total })),
+    );
   }
 
-  async findOne(id: Types.ObjectId): Promise<WeatherSnapshot | null> {
-    return this.weatherModel.findOne({ _id: id }).lean().exec();
+  findOne(
+    id: Types.ObjectId,
+  ): Effect.Effect<WeatherSnapshot | null, WeatherError> {
+    return Effect.tryPromise({
+      try: () => this.weatherModel.findOne({ _id: id }).lean().exec(),
+      catch: (error) =>
+        new WeatherError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 
-  async remove(id: Types.ObjectId): Promise<WeatherSnapshot | null> {
-    return this.weatherModel.findByIdAndDelete({ _id: id }).lean().exec();
+  remove(
+    id: Types.ObjectId,
+  ): Effect.Effect<WeatherSnapshot | null, WeatherError> {
+    return Effect.tryPromise({
+      try: () => this.weatherModel.findByIdAndDelete({ _id: id }).lean().exec(),
+      catch: (error) =>
+        new WeatherError({
+          code: 'DATABASE_ERROR',
+          message: String(error),
+        }),
+    });
   }
 }

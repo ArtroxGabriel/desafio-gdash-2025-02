@@ -1,5 +1,5 @@
 import { Public, VerifyApiKey } from '@auth/decorators/public.decorator';
-import { isFail } from '@common/result';
+import { runNest } from '@common/effect-util';
 import { PaginationResponseDTO, StatusCode } from '@core/http/response';
 import {
   Body,
@@ -16,6 +16,7 @@ import {
   ApiOkResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
+import { Effect } from 'effect';
 import { Types } from 'mongoose';
 import { MongoIdTransformer } from 'src/common/mongoid.transformer';
 import { SearchParams } from 'src/core/http/query/query';
@@ -41,12 +42,8 @@ export class WeatherController {
   async createSnapshot(
     @Body(new ValidationPipe()) weatherDto: CreateWeatherDTO,
   ): Promise<string> {
-    const result = await this.weatherService.create(weatherDto);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
-
-    return result.value;
+    const program = this.weatherService.create(weatherDto);
+    return runNest(program, mapToHttpException);
   }
 
   @Public()
@@ -59,21 +56,26 @@ export class WeatherController {
   async findAll(
     @Query() search: SearchParams,
   ): Promise<PaginationResponseDTO<WeatherSnapshotResponseDto>> {
-    const result = await this.weatherService.findAll(search.page, search.limit);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
-
-    const { data: paginationData, total } = result.value;
-
-    return new PaginationResponseDTO(
-      StatusCode.SUCCESS,
-      'Fetched successfully',
-      paginationData,
-      total,
+    const serviceEffect = this.weatherService.findAll(
       search.page,
       search.limit,
     );
+
+    const program = serviceEffect.pipe(
+      Effect.map(
+        ({ data, total }) =>
+          new PaginationResponseDTO(
+            StatusCode.SUCCESS,
+            'Fetched successfully',
+            data,
+            total,
+            search.page,
+            search.limit,
+          ),
+      ),
+    );
+
+    return runNest(program, mapToHttpException);
   }
 
   @Public()
@@ -86,12 +88,8 @@ export class WeatherController {
   async findOne(
     @Param('id', MongoIdTransformer) id: Types.ObjectId,
   ): Promise<WeatherSnapshotResponseDto> {
-    const result = await this.weatherService.findOne(id);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
-
-    return result.value;
+    const program = this.weatherService.findOne(id);
+    return runNest(program, mapToHttpException);
   }
 
   @Public()
@@ -104,11 +102,12 @@ export class WeatherController {
   async remove(
     @Param('id', MongoIdTransformer) id: Types.ObjectId,
   ): Promise<string> {
-    const result = await this.weatherService.remove(id);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
+    const removeEffect = this.weatherService.remove(id);
 
-    return 'Snapshot removed';
+    const program = removeEffect.pipe(
+      Effect.map(() => 'Snapshot deleted successfully'),
+    );
+
+    return runNest(program, mapToHttpException);
   }
 }
