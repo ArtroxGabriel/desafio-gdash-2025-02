@@ -4,23 +4,23 @@ import mongoose, { Types } from 'mongoose';
 
 @Schema({ collection: 'keystores', versionKey: false, timestamps: true })
 export class Keystore {
-  readonly _id: Types.ObjectId;
+  readonly _id!: Types.ObjectId;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: User.name,
     required: true,
   })
-  client: User;
+  client!: User;
 
   @Prop({ required: true, trim: true })
-  primaryKey: string;
+  primaryKey!: string;
 
   @Prop({ required: true, trim: true })
-  secondaryKey: string;
+  secondaryKey!: string;
 
   @Prop({ default: true })
-  status: boolean;
+  status!: boolean;
 }
 
 export const KeystoreSchema = SchemaFactory.createForClass(Keystore);

@@ -4,10 +4,10 @@ import { IsEmail, MaxLength, MinLength } from 'class-validator';
 export class SignInBasicDto {
   @IsEmail()
   @ApiProperty()
-  readonly email: string;
+  readonly email!: string;
 
   @MinLength(6)
   @MaxLength(100)
   @ApiProperty()
-  readonly password: string;
+  readonly password!: string;
 }

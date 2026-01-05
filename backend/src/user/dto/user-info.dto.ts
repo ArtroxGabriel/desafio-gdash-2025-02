@@ -6,7 +6,7 @@ import { User } from '../schemas/user.schema';
 
 export class UserInfoDto {
   @IsMongoIdObject()
-  readonly _id: Types.ObjectId;
+  readonly _id!: Types.ObjectId;
 
   @IsNotEmpty()
   @IsOptional()

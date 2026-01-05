@@ -28,7 +28,7 @@ export class User {
   password?: string;
 
   @Prop({ default: true })
-  readonly status: boolean;
+  readonly status!: boolean;
 
   constructor(userDto: UserDto) {
     this._id = userDto.id;
