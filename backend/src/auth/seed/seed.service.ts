@@ -4,8 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from '@user/schemas/user.schema';
 import { hash } from 'bcrypt';
+import { Effect } from 'effect';
 import { Model } from 'mongoose';
 import { ServerConfig, ServerConfigName } from 'src/config/server.config';
+import { SeedError } from './seed.error';
 
 @Injectable()
 export class SeedService {
@@ -17,7 +19,7 @@ export class SeedService {
     private configService: ConfigService,
   ) {}
 
-  async seed(): Promise<void> {
+  seed = Effect.gen(this, function* () {
     const serverConfig =
       this.configService.getOrThrow<ServerConfig>(ServerConfigName);
 
@@ -33,18 +35,21 @@ export class SeedService {
 
     this.logger.debug('Starting database seeding...');
 
-    try {
-      await this.seedRoles();
-      await this.seedDefaultUser();
-      this.logger.debug('Database seeding completed successfully');
-    } catch (error) {
-      this.logger.error('Database seeding failed', error);
-      throw error;
-    }
-  }
+    yield* Effect.all([this.seedRoles, this.seedDefaultUser]);
+    this.logger.debug('Database seeding completed successfully');
+  });
 
-  private async seedRoles(): Promise<void> {
-    const existingRoles = await this.roleModel.countDocuments();
+  private seedRoles = Effect.gen(this, function* () {
+    const existingRoles = yield* Effect.tryPromise({
+      try: () => this.roleModel.countDocuments(),
+      catch: (error) => {
+        this.logger.error(
+          'Error checking existing roles during seeding',
+          error instanceof Error ? error : undefined,
+        );
+        return new SeedError();
+      },
+    });
 
     if (existingRoles > 0) {
       this.logger.debug('Roles already exist, skipping roles seeding');
@@ -58,12 +63,31 @@ export class SeedService {
       status: true,
     }));
 
-    await this.roleModel.insertMany(roles);
-    this.logger.debug(`Created ${roles.length} default roles`);
-  }
+    yield* Effect.tryPromise({
+      try: () => this.roleModel.insertMany(roles),
+      catch: (error) => {
+        this.logger.error(
+          'Error creating default roles during seeding',
+          error instanceof Error ? error : undefined,
+        );
+        return new SeedError();
+      },
+    });
 
-  private async seedDefaultUser(): Promise<void> {
-    const existingUsers = await this.userModel.countDocuments();
+    this.logger.debug(`Created ${roles.length} default roles`);
+  });
+
+  private seedDefaultUser = Effect.gen(this, function* () {
+    const existingUsers = yield* Effect.tryPromise({
+      try: () => this.userModel.countDocuments(),
+      catch: (error) => {
+        this.logger.error(
+          'Error checking existing users during seeding',
+          error instanceof Error ? error : undefined,
+        );
+        return new SeedError();
+      },
+    });
 
     if (existingUsers > 0) {
       this.logger.debug('Users already exist, skipping default user seeding');
@@ -72,14 +96,23 @@ export class SeedService {
 
     this.logger.debug('Seeding default admin user...');
 
-    const adminRole = await this.roleModel.findOne({ code: RoleCode.ADMIN });
+    const adminRole = yield* Effect.tryPromise({
+      try: () => this.roleModel.findOne({ code: RoleCode.ADMIN }),
+      catch: (error) => {
+        this.logger.error(
+          'Error fetching admin role during user seeding',
+          error instanceof Error ? error : undefined,
+        );
+        return new SeedError();
+      },
+    });
 
     if (!adminRole) {
       this.logger.debug('Admin role not found during user seeding');
-      throw new Error('Admin role must exist before creating default user');
+      throw new SeedError();
     }
 
-    const hashedPassword = await hash('admin123', 10);
+    const hashedPassword = yield* Effect.promise(() => hash('admin123', 10));
 
     const defaultUser = new this.userModel({
       name: 'Admin User',
@@ -89,9 +122,19 @@ export class SeedService {
       status: true,
     });
 
-    await defaultUser.save();
+    yield* Effect.tryPromise({
+      try: () => defaultUser.save(),
+      catch: (error) => {
+        this.logger.error(
+          'Error creating default admin user during seeding',
+          error instanceof Error ? error : undefined,
+        );
+        return new SeedError();
+      },
+    });
+
     this.logger.debug(
       `Created default admin user with email: admin@localhost.dev`,
     );
-  }
+  });
 }
