@@ -1,5 +1,6 @@
-import { MongoIdTransformer } from '@common/mongoid.transformer';
 import { runNest } from '@common/effect-util';
+import { MongoIdTransformer } from '@common/mongoid.transformer';
+import { HeaderName } from '@core/http/header';
 import { SearchParams } from '@core/http/query/query';
 import {
   ApiPaginatedResponse,
@@ -14,15 +15,12 @@ import { Types } from 'mongoose';
 import { UserDto } from './dto/user.dto';
 import { mapToHttpException } from './user.error';
 import { UserService } from './user.service';
-import { HeaderName } from '@core/http/header';
-import { Public } from '@auth/decorators/public.decorator';
 
 @Controller('user')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
   constructor(private readonly userService: UserService) {}
 
-  @Public()
   @Get()
   @SearchQuery()
   @ApiPaginatedResponse(UserDto, 'Retrieved users successfully')
