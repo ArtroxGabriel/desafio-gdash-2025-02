@@ -1,4 +1,4 @@
-import { AuthErrorClass, mapToHttpExceptionV2 } from '@auth/auth.error';
+import { AuthErrorClass, mapToHttpException } from '@auth/auth.error';
 import { AuthService } from '@auth/auth.service';
 import { IS_PUBLIC_KEY } from '@auth/decorators/public.decorator';
 import { runNest } from '@common/effect-util';
@@ -71,7 +71,7 @@ export class AuthGuard implements CanActivate {
       return true;
     });
 
-    return runNest(authGuardFlow, mapToHttpExceptionV2);
+    return runNest(authGuardFlow, mapToHttpException);
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {

@@ -1,4 +1,4 @@
-import { AuthErrorClass, mapToHttpExceptionV2 } from '@auth/auth.error';
+import { AuthErrorClass, mapToHttpException } from '@auth/auth.error';
 import { AuthService } from '@auth/auth.service';
 import { Permissions } from '@auth/decorators/permissions.decorator';
 import { VERIFY_API_KEY } from '@auth/decorators/public.decorator';
@@ -74,6 +74,6 @@ export class ApikeyGuard implements CanActivate {
       return yield* new AuthErrorClass({ code: 'FORBIDDEN' });
     });
 
-    return runNest(apiKeyGuardFlow, mapToHttpExceptionV2);
+    return runNest(apiKeyGuardFlow, mapToHttpException);
   }
 }

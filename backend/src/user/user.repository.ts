@@ -53,7 +53,7 @@ export class UserRepository {
         catch: (error) =>
           new UserError({
             code: 'DATABASE_ERROR',
-            message: String(error),
+            message: error instanceof Error ? error.message : 'Unknown error',
           }),
       }),
     ]);

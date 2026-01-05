@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { Effect, pipe } from 'effect';
-import { mapToHttpExceptionV2 } from './auth.error';
+import { mapToHttpException } from './auth.error';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { ApiKeyDto } from './dto/api-key.dto';
@@ -36,7 +36,7 @@ export class AuthController {
     this.logger.log('Starting register user process');
 
     const registerFlow = this.authService.signUp(signUpDto);
-    return runNest(registerFlow, mapToHttpExceptionV2);
+    return runNest(registerFlow, mapToHttpException);
   }
 
   @Public()
@@ -48,7 +48,7 @@ export class AuthController {
     this.logger.log('Starting login user process');
 
     const loginFlow = this.authService.signIn(signInDto);
-    return runNest(loginFlow, mapToHttpExceptionV2);
+    return runNest(loginFlow, mapToHttpException);
   }
 
   @Delete('logout')
@@ -59,7 +59,7 @@ export class AuthController {
     );
 
     const signOutFlow = this.authService.signOut(request.keystore);
-    return runNest(signOutFlow, mapToHttpExceptionV2);
+    return runNest(signOutFlow, mapToHttpException);
   }
 
   @Public()
@@ -86,7 +86,7 @@ export class AuthController {
       Effect.map((result) => result.tokens),
     );
 
-    return runNest(refreshTokenFlow, mapToHttpExceptionV2);
+    return runNest(refreshTokenFlow, mapToHttpException);
   }
 
   @Post('/api-key')
@@ -101,6 +101,6 @@ export class AuthController {
 
     const createApiKeyFlow = this.authService.createApiKey(request.user.email);
 
-    return runNest(createApiKeyFlow, mapToHttpExceptionV2);
+    return runNest(createApiKeyFlow, mapToHttpException);
   }
 }
