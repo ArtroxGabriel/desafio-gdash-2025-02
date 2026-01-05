@@ -1,4 +1,4 @@
-import { isFail } from '@common/result';
+import { runNest } from '@common/effect-util';
 import { HeaderName } from '@core/http/header';
 import type { ProtectedRequest } from '@core/http/request';
 import {
@@ -11,7 +11,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
-import { mapToHttpException } from './auth.error';
+import { Effect, pipe } from 'effect';
+import { mapToHttpExceptionV2 } from './auth.error';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { ApiKeyDto } from './dto/api-key.dto';
@@ -34,12 +35,8 @@ export class AuthController {
   async register(@Body() signUpDto: SignUpBasicDto) {
     this.logger.log('Starting register user process');
 
-    const result = await this.authService.signUp(signUpDto);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
-
-    return result.value;
+    const registerFlow = this.authService.signUp(signUpDto);
+    return runNest(registerFlow, mapToHttpExceptionV2);
   }
 
   @Public()
@@ -49,12 +46,9 @@ export class AuthController {
   })
   async login(@Body() signInDto: SignInBasicDto) {
     this.logger.log('Starting login user process');
-    const result = await this.authService.signIn(signInDto);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
 
-    return result.value;
+    const loginFlow = this.authService.signIn(signInDto);
+    return runNest(loginFlow, mapToHttpExceptionV2);
   }
 
   @Delete('logout')
@@ -63,12 +57,9 @@ export class AuthController {
     this.logger.log(
       'Starting sign out user process for user: ' + request.user.email,
     );
-    const result = await this.authService.signOut(request.keystore);
-    if (isFail(result)) {
-      throw mapToHttpException(result.error);
-    }
 
-    return result.value;
+    const signOutFlow = this.authService.signOut(request.keystore);
+    return runNest(signOutFlow, mapToHttpExceptionV2);
   }
 
   @Public()
@@ -78,20 +69,24 @@ export class AuthController {
     @Body() tokenRefreshDto: TokenRefreshDto,
   ): Promise<UserTokensDto> {
     this.logger.log('Starting token refresh process');
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    if (type !== 'Bearer' || token === undefined)
-      throw new UnauthorizedException();
 
-    const refreshTokenResult = await this.authService.refreshToken(
-      tokenRefreshDto,
-      token,
+    const refreshTokenFlow = pipe(
+      Effect.sync(() => {
+        const [type, token] = request.headers.authorization?.split(' ') ?? [];
+        if (type !== 'Bearer' || token === undefined) {
+          throw new UnauthorizedException();
+        }
+        return token;
+      }),
+
+      Effect.flatMap((token) =>
+        this.authService.refreshToken(tokenRefreshDto, token),
+      ),
+
+      Effect.map((result) => result.tokens),
     );
-    if (isFail(refreshTokenResult)) {
-      throw mapToHttpException(refreshTokenResult.error);
-    }
 
-    const tokens = refreshTokenResult.value.tokens;
-    return tokens;
+    return runNest(refreshTokenFlow, mapToHttpExceptionV2);
   }
 
   @Post('/api-key')
@@ -100,13 +95,12 @@ export class AuthController {
     type: ApiKeyDto,
   })
   async createApiKey(@Request() request: ProtectedRequest): Promise<ApiKeyDto> {
-    const apikeyResult = await this.authService.createApiKey(
-      request.user.email,
+    this.logger.log(
+      'Starting API key creation process for user: ' + request.user.email,
     );
-    if (isFail(apikeyResult)) {
-      throw mapToHttpException(apikeyResult.error);
-    }
 
-    return apikeyResult.value;
+    const createApiKeyFlow = this.authService.createApiKey(request.user.email);
+
+    return runNest(createApiKeyFlow, mapToHttpExceptionV2);
   }
 }
