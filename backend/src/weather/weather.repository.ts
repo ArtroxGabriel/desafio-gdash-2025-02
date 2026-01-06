@@ -34,25 +34,28 @@ export class WeatherRepository {
   ): Effect.Effect<{ data: WeatherSnapshot[]; total: number }, WeatherError> {
     const skip = (page - 1) * limit;
 
-    const allPromisesEffect = Effect.all([
-      Effect.tryPromise({
-        try: () =>
-          this.weatherModel.find().skip(skip).limit(limit).lean().exec(),
-        catch: (error) =>
-          new WeatherError({
-            code: 'DATABASE_ERROR',
-            message: String(error),
-          }),
-      }),
-      Effect.tryPromise({
-        try: () => this.weatherModel.countDocuments().exec(),
-        catch: (error) =>
-          new WeatherError({
-            code: 'DATABASE_ERROR',
-            message: String(error),
-          }),
-      }),
-    ]);
+    const allPromisesEffect = Effect.all(
+      [
+        Effect.tryPromise({
+          try: () =>
+            this.weatherModel.find().skip(skip).limit(limit).lean().exec(),
+          catch: (error) =>
+            new WeatherError({
+              code: 'DATABASE_ERROR',
+              message: String(error),
+            }),
+        }),
+        Effect.tryPromise({
+          try: () => this.weatherModel.countDocuments().exec(),
+          catch: (error) =>
+            new WeatherError({
+              code: 'DATABASE_ERROR',
+              message: String(error),
+            }),
+        }),
+      ],
+      { concurrency: 2 },
+    );
 
     return pipe(
       allPromisesEffect,

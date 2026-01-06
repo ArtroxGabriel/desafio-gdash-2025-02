@@ -20,8 +20,16 @@ export class SeedService {
   ) {}
 
   seed = Effect.gen(this, function* () {
-    const serverConfig =
-      this.configService.getOrThrow<ServerConfig>(ServerConfigName);
+    const serverConfig = yield* Effect.try({
+      try: () => this.configService.getOrThrow<ServerConfig>(ServerConfigName),
+      catch: (error) => {
+        this.logger.error(
+          'Error fetching server configuration during seeding',
+          error instanceof Error ? error : undefined,
+        );
+        return new SeedError();
+      },
+    });
 
     if (
       serverConfig.nodeEnv !== 'development' &&
@@ -109,7 +117,7 @@ export class SeedService {
 
     if (!adminRole) {
       this.logger.debug('Admin role not found during user seeding');
-      throw new SeedError();
+      return yield* new SeedError();
     }
 
     const hashedPassword = yield* Effect.promise(() => hash('admin123', 10));

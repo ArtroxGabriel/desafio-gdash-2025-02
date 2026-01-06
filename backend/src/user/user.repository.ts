@@ -33,30 +33,33 @@ export class UserRepository {
   ): Effect.Effect<{ data: User[]; total: number }, UserError> {
     const skip = (page - 1) * limit;
 
-    const allPromisesEffect = Effect.all([
-      Effect.tryPromise({
-        try: () =>
-          this.userModel
-            .find({ status: true })
-            .skip(skip)
-            .limit(limit)
-            .lean()
-            .exec(),
-        catch: (error) =>
-          new UserError({
-            code: 'DATABASE_ERROR',
-            message: String(error),
-          }),
-      }),
-      Effect.tryPromise({
-        try: () => this.userModel.countDocuments().exec(),
-        catch: (error) =>
-          new UserError({
-            code: 'DATABASE_ERROR',
-            message: error instanceof Error ? error.message : 'Unknown error',
-          }),
-      }),
-    ]);
+    const allPromisesEffect = Effect.all(
+      [
+        Effect.tryPromise({
+          try: () =>
+            this.userModel
+              .find({ status: true })
+              .skip(skip)
+              .limit(limit)
+              .lean()
+              .exec(),
+          catch: (error) =>
+            new UserError({
+              code: 'DATABASE_ERROR',
+              message: String(error),
+            }),
+        }),
+        Effect.tryPromise({
+          try: () => this.userModel.countDocuments({ status: true }).exec(),
+          catch: (error) =>
+            new UserError({
+              code: 'DATABASE_ERROR',
+              message: error instanceof Error ? error.message : 'Unknown error',
+            }),
+        }),
+      ],
+      { concurrency: 2 },
+    );
 
     return allPromisesEffect.pipe(
       Effect.map(([data, total]) => ({ data, total })),

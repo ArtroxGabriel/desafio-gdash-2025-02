@@ -231,9 +231,9 @@ export class AuthService {
         yield* this.validatePayload(refreshTokenPayload);
       if (!validRefreshToken) {
         this.logger.warn('Invalid refresh token payload during token refresh');
-        yield* new AuthErrorClass({
+        return yield* new AuthErrorClass({
           code: 'INVALID_ACCESS_TOKEN',
-          message: 'Invalid Access token',
+          message: 'Invalid Access tken',
         });
       }
 
@@ -241,7 +241,7 @@ export class AuthService {
         this.logger.warn(
           'Access token and refresh token subject mismatch during token refresh',
         );
-        yield* new AuthErrorClass({
+        return yield* new AuthErrorClass({
           code: 'INVALID_ACCESS_TOKEN',
           message: 'Invalid Access token',
         });
