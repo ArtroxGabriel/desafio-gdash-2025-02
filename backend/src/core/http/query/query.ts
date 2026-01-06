@@ -10,12 +10,12 @@ export class SearchParams {
   @IsInt()
   @Min(1)
   @Type(() => Number)
-  page: number;
+  page!: number;
 
   @IsInt()
   @Min(1)
   @Type(() => Number)
-  limit: number;
+  limit!: number;
 
   @IsOptional()
   @IsString()

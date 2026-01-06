@@ -5,6 +5,8 @@ import { Model, Types } from 'mongoose';
 import { ApiKey } from './schemas/apikey.schema';
 import { Keystore } from './schemas/keystore.schema';
 import { Role, RoleCode } from './schemas/role.schema';
+import { AuthErrorClass } from './auth.error';
+import { Effect } from 'effect';
 
 @Injectable()
 export class AuthRepository {
@@ -14,74 +16,109 @@ export class AuthRepository {
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
   ) {}
 
-  async findRole(roleCode: RoleCode): Promise<Role | null> {
-    return this.roleModel
-      .findOne({
-        code: roleCode,
-        status: true,
-      })
-      .lean()
-      .exec();
+  findRole(roleCode: RoleCode): Effect.Effect<Role | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.roleModel
+        .findOne({
+          code: roleCode,
+          status: true,
+        })
+        .lean()
+        .exec(),
+    );
   }
 
-  async deleteRole(role: Role): Promise<Role | null> {
-    return this.roleModel.findByIdAndDelete(role._id).lean().exec();
+  deleteRole(role: Role): Effect.Effect<Role | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.roleModel.findByIdAndDelete(role._id).lean().exec(),
+    );
   }
 
-  async findApiKey(key: string): Promise<ApiKey | null> {
-    return this.apikeyModel.findOne({ key: key, status: true }).lean().exec();
+  findApiKey(key: string): Effect.Effect<ApiKey | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.apikeyModel.findOne({ key: key, status: true }).lean().exec(),
+    );
   }
 
-  async createApiKey(apikey: Omit<ApiKey, '_id' | 'status'>): Promise<ApiKey> {
-    const created = await this.apikeyModel.create(apikey);
-    return created.toObject();
-  }
-
-  async deleteApiKey(apikey: ApiKey): Promise<ApiKey | null> {
-    return this.apikeyModel.findByIdAndDelete(apikey._id).lean().exec();
-  }
-
-  async createKeystore(
-    client: User,
-    primaryKey: string,
-    secondaryKey: string,
-  ): Promise<Keystore> {
-    const keystore = await this.keystoreModel.create({
-      client: client,
-      primaryKey: primaryKey,
-      secondaryKey: secondaryKey,
+  createApiKey(
+    apikey: Omit<ApiKey, '_id' | 'status'>,
+  ): Effect.Effect<ApiKey, AuthErrorClass> {
+    return tryPromise(async () => {
+      const created = await this.apikeyModel.create(apikey);
+      return created.toObject();
     });
-    return keystore.toObject();
   }
 
-  async removeKeystore(clientId: Types.ObjectId): Promise<Keystore | null> {
-    return this.keystoreModel.findByIdAndDelete(clientId).lean().exec();
+  deleteApiKey(apikey: ApiKey): Effect.Effect<ApiKey | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.apikeyModel.findByIdAndDelete(apikey._id).lean().exec(),
+    );
   }
 
-  async findKeystore(client: User, key: string): Promise<Keystore | null> {
-    return this.keystoreModel
-      .findOne({
-        client: client,
-        primaryKey: key,
-        status: true,
-      })
-      .lean()
-      .exec();
-  }
-
-  async findTokensKeystore(
+  createKeystore(
     client: User,
     primaryKey: string,
     secondaryKey: string,
-  ): Promise<Keystore | null> {
-    return this.keystoreModel
-      .findOne({
+  ): Effect.Effect<Keystore, AuthErrorClass> {
+    return tryPromise(async () => {
+      const keystore = await this.keystoreModel.create({
         client: client,
         primaryKey: primaryKey,
         secondaryKey: secondaryKey,
-        status: true,
-      })
-      .lean()
-      .exec();
+      });
+      return keystore.toObject();
+    });
+  }
+
+  removeKeystore(
+    clientId: Types.ObjectId,
+  ): Effect.Effect<Keystore | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.keystoreModel.findByIdAndDelete(clientId).lean().exec(),
+    );
+  }
+
+  findKeystore(
+    client: User,
+    key: string,
+  ): Effect.Effect<Keystore | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.keystoreModel
+        .findOne({
+          client: client,
+          primaryKey: key,
+          status: true,
+        })
+        .lean()
+        .exec(),
+    );
+  }
+
+  findTokensKeystore(
+    client: User,
+    primaryKey: string,
+    secondaryKey: string,
+  ): Effect.Effect<Keystore | null, AuthErrorClass> {
+    return tryPromise(() =>
+      this.keystoreModel
+        .findOne({
+          client: client,
+          primaryKey: primaryKey,
+          secondaryKey: secondaryKey,
+          status: true,
+        })
+        .lean()
+        .exec(),
+    );
   }
 }
+
+const tryPromise = <T>(tryFunc: () => Promise<T>) =>
+  Effect.tryPromise({
+    try: tryFunc,
+    catch: (error) =>
+      new AuthErrorClass({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+  });

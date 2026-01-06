@@ -1,5 +1,5 @@
-import { fail, Result, success } from '@common/result';
 import { Injectable, Logger } from '@nestjs/common';
+import { Effect } from 'effect';
 import { Types } from 'mongoose';
 import { UserDto } from './dto/user.dto';
 import { User } from './schemas/user.schema';
@@ -12,107 +12,211 @@ export class UserService {
 
   constructor(private readonly userRepository: UserRepository) {}
 
-  async create(
+  create(
     param: Omit<User, '_id' | 'status'>,
-  ): Result<UserDto, UserError> {
-    this.logger.log('Creating a new user');
+  ): Effect.Effect<UserDto, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log('Creating a new user');
 
-    const user = await this.userRepository.create(param);
-
-    this.logger.log(`User created with ID: ${user._id.toString()}`);
-    return success(new UserDto(user));
-  }
-
-  async findById(id: Types.ObjectId): Result<UserDto, UserError> {
-    this.logger.log(`Finding user by ID: ${id.toString()}`);
-
-    const user = await this.userRepository.findById(id);
-    if (user === null) {
-      this.logger.warn(`User not found with ID: ${id.toString()}`);
-      return fail(UserError.NOT_FOUND);
-    }
-
-    this.logger.log(`User found with ID: ${id.toString()}`);
-    return success(new UserDto(user));
-  }
-
-  async findByEmail(email: string): Result<UserDto, UserError> {
-    this.logger.log(`Finding user by email: ${email}`);
-
-    const user = await this.userRepository.findByEmail(email);
-    if (user === null) {
-      this.logger.warn(`User not found with email: ${email}`);
-      return fail(UserError.NOT_FOUND);
-    }
-
-    this.logger.log(`User found with email: ${email}`);
-    return success(new UserDto(user));
-  }
-
-  async findPrivateProfile(user: User): Result<UserDto, UserError> {
-    this.logger.log(
-      `Finding private profile for user with ID ${user._id.toString()} `,
-    );
-
-    const profile = await this.userRepository.findPrivateProfile(user);
-    if (profile === null) {
-      this.logger.warn(
-        `Private profile not found for user with ID ${user._id.toString()}`,
+      const user = yield* this.userRepository.create(param).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(`User creation failed: ${err.message}`);
+          return err;
+        }),
       );
-      return fail(UserError.NOT_FOUND);
-    }
+      const userDto = new UserDto(user);
 
-    this.logger.log(
-      `Private profile found for user with ID ${user._id.toString()}`,
-    );
-    return success(new UserDto(profile));
+      this.logger.log(`User created with ID: ${userDto.id.toString()}`);
+      return userDto;
+    });
   }
 
-  async updateProfile(
+  findAll(
+    page: number,
+    limit: number,
+  ): Effect.Effect<{ data: UserDto[]; total: number }, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.debug(`Fetching users page: ${page}, limit: ${limit}`);
+
+      const { data, total } = yield* this.userRepository
+        .findAll(page, limit)
+        .pipe(
+          Effect.tapError((err) => {
+            this.logger.error(`Fetching users failed: ${err.message}`);
+            return err;
+          }),
+        );
+
+      const dataPaginated = data.map((user) => new UserDto(user));
+
+      this.logger.log(`${data.length} users fetched successfully`);
+      return { data: dataPaginated, total };
+    });
+  }
+
+  findById(id: Types.ObjectId): Effect.Effect<UserDto, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log(`Finding user by ID: ${id.toString()}`);
+
+      const user = yield* this.userRepository.findById(id).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(`User search by ID failed: ${err.message}`);
+          return err;
+        }),
+      );
+
+      if (user === null) {
+        this.logger.warn(`User not found with id: ${id.toString()}`);
+        return yield* new UserError({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
+
+      const userDto = new UserDto(user);
+
+      this.logger.log(`User with ID: ${id.toString()} found successfully`);
+      return userDto;
+    });
+  }
+
+  findByEmail(email: string): Effect.Effect<UserDto, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log(`Finding user by email: ${email}`);
+
+      const user = yield* this.userRepository.findByEmail(email).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(`User search by Email failed: ${err.message}`);
+          return err;
+        }),
+      );
+      if (user === null) {
+        this.logger.warn(`User not found with email: ${email}`);
+        return yield* new UserError({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
+
+      const userDto = new UserDto(user);
+
+      this.logger.log(`User with email: ${email} found successfully`);
+      return userDto;
+    });
+  }
+
+  findPrivateProfile(user: User): Effect.Effect<UserDto, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log(
+        `Finding private profile for user with ID ${user._id.toString()}`,
+      );
+
+      const profile = yield* this.userRepository.findPrivateProfile(user._id);
+      if (profile === null) {
+        this.logger.warn(
+          `Private profile not found for user with ID ${user._id.toString()}`,
+        );
+        return yield* new UserError({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
+
+      const userDto = new UserDto(profile);
+
+      this.logger.log(
+        `Private profile for user with ID ${user._id.toString()} found successfully`,
+      );
+      return userDto;
+    });
+  }
+
+  updateProfile(
     userId: Types.ObjectId,
     updateData: Partial<User>,
-  ): Result<UserDto, UserError> {
-    this.logger.log(`Updating profile for user with ID ${userId.toString()}`);
+  ): Effect.Effect<UserDto, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log(`Updating profile for user with ID ${userId.toString()}`);
 
-    const updatedUser = await this.userRepository.updateInfo({
-      ...updateData,
-      _id: userId,
+      const updateUser = yield* this.userRepository
+        .updateInfo({
+          ...updateData,
+          _id: userId,
+        })
+        .pipe(
+          Effect.tapError((err) => {
+            this.logger.error(
+              `Profile update failed for user with ID ${userId.toString()}: ${err.message}`,
+            );
+            return err;
+          }),
+        );
+
+      if (updateUser === null) {
+        this.logger.warn(
+          `Profile update failed: User not found with ID ${userId.toString()}`,
+        );
+        return yield* new UserError({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
+
+      const userDto = new UserDto(updateUser);
+
+      this.logger.log(`Profile updated for user with ID ${userId.toString()}`);
+      return userDto;
     });
+  }
 
-    if (updatedUser === null) {
-      this.logger.warn(
-        `Failed to update profile for user with ID ${userId.toString()}`,
+  deleteUser(user: User): Effect.Effect<void, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log(`Deleting user with ID ${user._id.toString()}`);
+
+      const userDeleted = yield* this.userRepository.delete(user).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(
+            `User deletion failed for ID ${user._id.toString()}: ${err.message}`,
+          );
+          return err;
+        }),
       );
-      return fail(UserError.NOT_FOUND);
-    }
+      if (userDeleted === null) {
+        this.logger.warn(`User not found with ID ${user._id.toString()}`);
+        return yield* new UserError({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
 
-    this.logger.log(`Profile updated for user with ID ${userId.toString()}`);
-    return success(new UserDto(updatedUser));
+      this.logger.log(`User with ID ${user._id.toString()} deleted`);
+    });
   }
 
-  async deleteUser(user: User): Result<unknown, UserError> {
-    this.logger.log(`Deleting user with ID ${user._id.toString()}`);
+  deactivateUser(userId: Types.ObjectId): Effect.Effect<void, UserError> {
+    return Effect.gen(this, function* () {
+      this.logger.log(`Deactivating user with ID ${userId.toString()}`);
 
-    const userDeleted = await this.userRepository.delete(user);
-    if (userDeleted === null) {
-      this.logger.warn(`User not found with ID ${user._id.toString()}`);
-      return fail(UserError.NOT_FOUND);
-    }
+      const userDeactivated = yield* this.userRepository
+        .deactivate(userId)
+        .pipe(
+          Effect.tapError((err) => {
+            this.logger.error(
+              `User deactivation failed for ID ${userId.toString()}: ${err.message}`,
+            );
+            return err;
+          }),
+        );
 
-    this.logger.log(`User deleted with ID ${user._id.toString()}`);
-    return success(null);
-  }
+      if (userDeactivated === null) {
+        this.logger.warn(`User not found with ID ${userId.toString()}`);
+        return yield* new UserError({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
 
-  async deactivateUser(userId: Types.ObjectId): Result<unknown, UserError> {
-    this.logger.log(`Deactivating user with ID ${userId.toString()}`);
-
-    const userDeactivated = await this.userRepository.deactivate(userId);
-    if (userDeactivated === null) {
-      this.logger.warn(`User not found with ID ${userId.toString()}`);
-      return fail(UserError.NOT_FOUND);
-    }
-
-    this.logger.log(`User deactivated with ID ${userId.toString()}`);
-    return success(null);
+      this.logger.log(`User with ID ${userId.toString()} deactivated`);
+    });
   }
 }

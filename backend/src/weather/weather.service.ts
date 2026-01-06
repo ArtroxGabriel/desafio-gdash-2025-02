@@ -1,5 +1,5 @@
-import { fail, Result, success } from '@common/result';
 import { Injectable, Logger } from '@nestjs/common';
+import { Effect } from 'effect';
 import { Types } from 'mongoose';
 import { CreateWeatherDTO } from './dto/create-weather-snapshot.dto';
 import { WeatherSnapshotResponseDto } from './dto/weather-response.dto';
@@ -12,73 +12,110 @@ export class WeatherService {
 
   constructor(private weatherRepository: WeatherRepository) {}
 
-  async create(
+  create(
     createWeatherDto: CreateWeatherDTO,
-  ): Result<string, WeatherError> {
-    this.logger.log('Creating new weather snapshot');
+  ): Effect.Effect<string, WeatherError> {
+    return Effect.gen(this, function* () {
+      this.logger.debug('Trying to create weather snapshot');
 
-    const result = await this.weatherRepository.create(
-      createWeatherDto.current,
-    );
-    if (!result) {
-      this.logger.error('Failed to create weather snapshot');
-      return fail(WeatherError.INTERNAL_SERVER_ERROR);
-    }
+      yield* this.weatherRepository.create(createWeatherDto.current).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(`Weather snapshot creation failed: ${err.message}`);
+          return new WeatherError({ code: 'DATABASE_ERROR' });
+        }),
+      );
 
-    this.logger.log('Weather snapshot created successfully');
-    return success('Snapshot created');
+      this.logger.log('Weather snapshot created successfully');
+      return 'Snapshot created';
+    });
   }
 
-  async findAll(
+  findAll(
     page: number,
     limit: number,
-  ): Result<
+  ): Effect.Effect<
     { data: WeatherSnapshotResponseDto[]; total: number },
     WeatherError
   > {
-    this.logger.debug(
-      `Fetching weather snapshots page: ${page}, limit: ${limit}`,
-    );
+    return Effect.gen(this, function* () {
+      this.logger.debug(
+        `Trying to fetch weather snapshots page: ${page}, limit: ${limit}`,
+      );
 
-    const { data, total } = await this.weatherRepository.findAll(page, limit);
+      const { data, total } = yield* this.weatherRepository
+        .findAll(page, limit)
+        .pipe(
+          Effect.tapError((err) => {
+            this.logger.error(
+              `Fetching weather snapshots failed: ${err.message}`,
+            );
+            return new WeatherError({ code: 'DATABASE_ERROR' });
+          }),
+        );
 
-    const paginationData = data.map(
-      (snapshot) => new WeatherSnapshotResponseDto(snapshot),
-    );
+      const dataDto = data.map(
+        (snapshot) => new WeatherSnapshotResponseDto(snapshot),
+      );
 
-    this.logger.log(`${data.length} fetched successfully`);
-    return success({ data: paginationData, total });
+      this.logger.log(`${data.length} fetched successfully`);
+      return { data: dataDto, total };
+    });
   }
 
-  async findOne(
+  findOne(
     id: Types.ObjectId,
-  ): Result<WeatherSnapshotResponseDto, WeatherError> {
-    this.logger.debug(`Fetching weather snapshot with id: ${id.toString()}`);
+  ): Effect.Effect<WeatherSnapshotResponseDto, WeatherError> {
+    return Effect.gen(this, function* () {
+      this.logger.debug(
+        `Trying to fetch weather snapshot with id: ${id.toString()}`,
+      );
 
-    const snapshot = await this.weatherRepository.findOne(id);
-    if (snapshot === null) {
-      this.logger.warn(`Weather snapshot with id: ${id.toString()} not found`);
-      return fail(WeatherError.NOT_FOUND);
-    }
+      const snapshot = yield* this.weatherRepository.findOne(id).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(`Fetching weather snapshot failed: ${err.message}`);
+          return new WeatherError({ code: 'DATABASE_ERROR' });
+        }),
+      );
 
-    this.logger.log(
-      `Weather snapshot with id: ${id.toString()} fetched successfully`,
-    );
-    return success(new WeatherSnapshotResponseDto(snapshot));
+      if (snapshot === null) {
+        this.logger.warn(
+          `Weather snapshot not found with id: ${id.toString()}`,
+        );
+        return yield* new WeatherError({ code: 'NOT_FOUND' });
+      }
+
+      const snapshotDto = new WeatherSnapshotResponseDto(snapshot);
+      this.logger.log(
+        `Weather snapshot with id: ${id.toString()} fetched successfully`,
+      );
+
+      return snapshotDto;
+    });
   }
 
-  async remove(id: Types.ObjectId): Result<unknown, WeatherError> {
-    this.logger.debug(`Removing weather snapshot with id: ${id.toString()}`);
+  remove(id: Types.ObjectId): Effect.Effect<void, WeatherError> {
+    return Effect.gen(this, function* () {
+      this.logger.debug(
+        `Trying to remove weather snapshot with id: ${id.toString()}`,
+      );
 
-    const removed = await this.weatherRepository.remove(id);
-    if (removed === null) {
-      this.logger.warn(`Weather snapshot with id: ${id.toString()} not found`);
-      return fail(WeatherError.NOT_FOUND);
-    }
+      const removed = yield* this.weatherRepository.remove(id).pipe(
+        Effect.tapError((err) => {
+          this.logger.error(`Removing weather snapshot failed: ${err.message}`);
+          return new WeatherError({ code: 'DATABASE_ERROR' });
+        }),
+      );
 
-    this.logger.log(
-      `Weather snapshot with id: ${id.toString()} removed successfully`,
-    );
-    return success(null);
+      if (removed === null) {
+        this.logger.warn(
+          `Weather snapshot not found with id: ${id.toString()}`,
+        );
+        return yield* new WeatherError({ code: 'NOT_FOUND' });
+      }
+
+      this.logger.log(
+        `Weather snapshot with id: ${id.toString()} removed successfully`,
+      );
+    });
   }
 }

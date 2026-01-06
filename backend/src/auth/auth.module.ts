@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from '@user/user.module';
+import { Effect } from 'effect';
 import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
 import { AuthService } from './auth.service';
@@ -43,6 +44,6 @@ export class AuthModule implements OnModuleInit {
   constructor(private readonly seedService: SeedService) {}
 
   async onModuleInit() {
-    await this.seedService.seed();
+    await Effect.runPromise(this.seedService.seed);
   }
 }

@@ -8,7 +8,7 @@ export class SignUpBasicDto {
     description: "user's email address",
     required: true,
   })
-  readonly email: string;
+  readonly email!: string;
 
   @MinLength(6)
   @MaxLength(100)
@@ -19,7 +19,7 @@ export class SignUpBasicDto {
     minLength: 6,
     maxLength: 100,
   })
-  readonly password: string;
+  readonly password!: string;
 
   @IsNotEmpty()
   @MinLength(2)
@@ -31,5 +31,5 @@ export class SignUpBasicDto {
     minLength: 2,
     maxLength: 200,
   })
-  readonly name: string;
+  readonly name!: string;
 }

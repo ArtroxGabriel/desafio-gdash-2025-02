@@ -9,40 +9,40 @@ export type WeatherSnapshotDocument = HydratedDocument<WeatherSnapshot>;
   timestamps: true,
 })
 export class WeatherSnapshot {
-  readonly _id: Types.ObjectId;
+  readonly _id!: Types.ObjectId;
 
   @Prop({ required: true })
-  time: Date;
+  time!: Date;
 
   @Prop({ required: true })
-  interval: number;
+  interval!: number;
 
   @Prop({ required: true })
-  temperature_2m: number;
+  temperature_2m!: number;
 
   @Prop({ required: true })
-  is_day: boolean;
+  is_day!: boolean;
 
   @Prop({ required: true })
-  relative_humidity_2m: number;
+  relative_humidity_2m!: number;
 
   @Prop({ required: true })
-  apparent_temperature: number;
+  apparent_temperature!: number;
 
   @Prop({ required: true })
-  weather_code: number;
+  weather_code!: number;
 
   @Prop({ required: true })
-  precipitation: number;
+  precipitation!: number;
 
   @Prop({ required: true })
-  wind_speed_10m: number;
+  wind_speed_10m!: number;
 
   @Prop({ required: true })
-  wind_direction_10m: number;
+  wind_direction_10m!: number;
 
   @Prop({ required: true })
-  wind_gusts_10m: number;
+  wind_gusts_10m!: number;
 }
 
 export const WeatherSnapshotSchema =

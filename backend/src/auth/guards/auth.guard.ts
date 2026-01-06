@@ -1,18 +1,18 @@
-import { AuthError, mapToHttpException } from '@auth/auth.error';
+import { AuthErrorClass, mapToHttpException } from '@auth/auth.error';
 import { AuthService } from '@auth/auth.service';
 import { IS_PUBLIC_KEY } from '@auth/decorators/public.decorator';
-import { isFail } from '@common/result';
+import { runNest } from '@common/effect-util';
 import { ProtectedRequest } from '@core/http/request';
 import {
   CanActivate,
   ExecutionContext,
   Injectable,
   Logger,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { User } from '@user/schemas/user.schema';
 import { UserService } from '@user/user.service';
+import { Effect } from 'effect';
 import { Request } from 'express';
 import { Types } from 'mongoose';
 
@@ -27,53 +27,51 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (isPublic) return true;
+    const authGuardFlow = Effect.gen(this, function* () {
+      const isPublic = this.reflector.getAllAndOverride<boolean>(
+        IS_PUBLIC_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest<ProtectedRequest>();
-    const token = this.extractTokenFromHeader(request);
-    if (!token) {
-      this.logger.warn('No token found in request headers');
-      throw new UnauthorizedException();
-    }
+      const request = context.switchToHttp().getRequest<ProtectedRequest>();
+      const token = this.extractTokenFromHeader(request);
+      if (!token) {
+        this.logger.warn('No token found in request headers');
+        return yield* new AuthErrorClass({ code: 'UNAUTHORIZED' });
+      }
 
-    const payloadResult = await this.authService.verifyToken(token);
-    if (isFail(payloadResult)) {
-      throw mapToHttpException(payloadResult.error);
-    }
-    const payload = payloadResult.value;
+      const payload = yield* this.authService.verifyToken(token);
 
-    const valid = this.authService.validatePayload(payload);
-    if (!valid) {
-      this.logger.warn('Invalid access token payload');
-      throw mapToHttpException(AuthError.INVALID_ACCESS_TOKEN);
-    }
+      const valid = yield* this.authService.validatePayload(payload);
+      if (!valid) {
+        this.logger.warn('Invalid access token payload');
+        return yield* new AuthErrorClass({
+          code: 'INVALID_ACCESS_TOKEN',
+        });
+      }
 
-    const userResult = await this.userService.findById(
-      new Types.ObjectId(payload.sub),
-    );
-    if (isFail(userResult)) {
-      this.logger.warn(`User not found for ID: ${payload.sub}`);
-      throw mapToHttpException(AuthError.USER_NOT_REGISTERED);
-    }
-    const userDto = userResult.value;
+      const userDto = yield* this.userService
+        .findById(new Types.ObjectId(payload.sub))
+        .pipe(
+          Effect.mapError(() => {
+            this.logger.warn('User not found for the provided access token');
+            return new AuthErrorClass({ code: 'USER_NOT_REGISTERED' });
+          }),
+        );
 
-    const keystoreResult = await this.authService.findKeystore(
-      userDto,
-      payload.prm,
-    );
-    if (isFail(keystoreResult)) {
-      this.logger.warn('No keystore found for the provided access token');
-      throw mapToHttpException(keystoreResult.error);
-    }
+      const keystore = yield* this.authService.findKeystore(
+        userDto,
+        payload.prm,
+      );
 
-    request.user = new User(userDto);
-    request.keystore = keystoreResult.value;
+      request.user = new User(userDto);
+      request.keystore = keystore;
 
-    return true;
+      return true;
+    });
+
+    return runNest(authGuardFlow, mapToHttpException);
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {
