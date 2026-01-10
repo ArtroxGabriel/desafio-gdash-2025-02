@@ -133,7 +133,11 @@ export class UserRepository {
     return Effect.tryPromise({
       try: () =>
         this.userModel
-          .findByIdAndUpdate({ _id: user._id, status: true }, { $set: user })
+          .findByIdAndUpdate(
+            { _id: user._id, status: true },
+            { $set: user },
+            { new: true },
+          )
           .select('+email')
           .populate({
             path: 'roles',
