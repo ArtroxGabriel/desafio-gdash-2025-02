@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { compare } from 'bcrypt';
 import { Effect } from 'effect';
 import { Types } from 'mongoose';
+import { UserInfoDto } from './dto/user-info.dto';
 import { UserDto } from './dto/user.dto';
 import { User } from './schemas/user.schema';
 import { UserError } from './user.error';
@@ -133,14 +135,32 @@ export class UserService {
 
   updateProfile(
     userId: Types.ObjectId,
-    updateData: Partial<User>,
+    updateData: UserInfoDto,
   ): Effect.Effect<UserDto, UserError> {
     return Effect.gen(this, function* () {
       this.logger.log(`Updating profile for user with ID ${userId.toString()}`);
 
+      if (updateData.new_password) {
+        this.logger.debug('validate current passsword');
+
+        const user = yield* this.findById(userId);
+
+        const hashPassword = user.password!;
+        const match = yield* Effect.promise(() =>
+          compare(updateData.password!, hashPassword),
+        );
+
+        if (match === false)
+          return yield* new UserError({
+            code: 'BAD_REQUEST',
+            message: 'Current password is incorrect',
+          });
+      }
+
       const updateUser = yield* this.userRepository
         .updateInfo({
-          ...updateData,
+          name: updateData.name,
+          password: updateData.new_password,
           _id: userId,
         })
         .pipe(
