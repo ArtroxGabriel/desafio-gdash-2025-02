@@ -12,6 +12,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Logger,
   Param,
@@ -85,6 +86,21 @@ export class UserController {
     this.logger.log(`Starting to get user by ID: ${id.toString()}`);
 
     const program = this.userService.findById(id);
+    return runNest(program, mapToHttpException);
+  }
+
+  @Delete(':id')
+  async disableUser(
+    @Param('id', MongoIdTransformer) id: Types.ObjectId,
+  ): Promise<{ message: string }> {
+    this.logger.log(`Starting to disable user by ID: ${id.toString()}`);
+
+    const program = this.userService.deactivateUser(id).pipe(
+      Effect.map(() => ({
+        message: 'User disabled successfully',
+      })),
+    );
+
     return runNest(program, mapToHttpException);
   }
 
