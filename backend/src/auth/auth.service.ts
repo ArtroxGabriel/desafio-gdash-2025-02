@@ -1,10 +1,10 @@
+import { comparePassword, hashPassword } from '@common/hash-password';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { UserDto } from '@user/dto/user.dto';
 import { User } from '@user/schemas/user.schema';
 import { UserService } from '@user/user.service';
-import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { Effect, pipe } from 'effect';
 import { Types } from 'mongoose';
@@ -61,9 +61,7 @@ export class AuthService {
         });
       }
 
-      const password = yield* Effect.promise(() =>
-        hash(signUpBasicDto.password, 10),
-      );
+      const password = yield* hashPassword(signUpBasicDto.password);
 
       const createUserDto = yield* this.userService
         .create({
@@ -139,9 +137,11 @@ export class AuthService {
       }
 
       const hashPassword = userDto.password;
-      const match = yield* Effect.promise(() =>
-        compare(signInBasicDto.password, hashPassword),
+      const match = yield* comparePassword(
+        signInBasicDto.password,
+        hashPassword,
       );
+
       if (!match) {
         this.logger.warn(
           `Invalid password for user with email ${signInBasicDto.email}`,
