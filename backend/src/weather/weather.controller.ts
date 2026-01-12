@@ -1,4 +1,4 @@
-import { Public, VerifyApiKey } from '@auth/decorators/public.decorator';
+import { Public } from '@auth/decorators/public.decorator';
 import { runNest } from '@common/effect-util';
 import { PaginationResponseDTO, StatusCode } from '@core/http/response';
 import {
@@ -29,11 +29,11 @@ import { WeatherSnapshotResponseDto } from './dto/weather-response.dto';
 import { mapToHttpException } from './weather.error';
 import { WeatherService } from './weather.service';
 
+@Public()
 @Controller('weather')
 export class WeatherController {
   constructor(private readonly weatherService: WeatherService) {}
 
-  @VerifyApiKey()
   @Post()
   @ApiOkResponse({
     description: 'snapshot created successfully',
@@ -46,7 +46,6 @@ export class WeatherController {
     return runNest(program, mapToHttpException);
   }
 
-  @Public()
   @Get()
   @SearchQuery()
   @ApiPaginatedResponse(
@@ -78,7 +77,6 @@ export class WeatherController {
     return runNest(program, mapToHttpException);
   }
 
-  @Public()
   @Get(':id')
   @ApiOkResponse({
     description: 'Retrieved weather snapshot successfully',
@@ -92,7 +90,6 @@ export class WeatherController {
     return runNest(program, mapToHttpException);
   }
 
-  @Public()
   @Delete(':id')
   @ApiOkResponse({
     description: 'snapshot deleted successfully',

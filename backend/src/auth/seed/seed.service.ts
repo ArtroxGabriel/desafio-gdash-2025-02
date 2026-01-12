@@ -3,11 +3,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from '@user/schemas/user.schema';
-import { hash } from 'bcrypt';
 import { Effect } from 'effect';
 import { Model } from 'mongoose';
 import { ServerConfig, ServerConfigName } from 'src/config/server.config';
 import { SeedError } from './seed.error';
+import { hashPassword } from '@common/hash-password';
 
 @Injectable()
 export class SeedService {
@@ -120,7 +120,7 @@ export class SeedService {
       return yield* new SeedError();
     }
 
-    const hashedPassword = yield* Effect.promise(() => hash('admin123', 10));
+    const hashedPassword = yield* hashPassword('admin123');
 
     const defaultUser = new this.userModel({
       name: 'Admin User',
