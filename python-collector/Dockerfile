@@ -1,32 +1,37 @@
+# Use a Python image with uv pre-installed
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+# Setup a non-root user
+RUN groupadd --system --gid 999 nonroot \
+    && useradd --system --gid 999 --uid 999 --create-home nonroot
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    procps \
-    && rm -rf /var/lib/apt/lists/*
+# Enable bytecode compilation
+# Copy from the cache instead of linking since it's a mounted volume
+# Omit development dependencies
+# Ensure installed tools can be executed out of the box
+# Place executables in the environment at the front of the path
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \ 
+    UV_NO_DEV=1 \
+    UV_TOOL_BIN_DIR=/usr/local/bin \
+    PATH="/app/.venv/bin:$PATH"
 
-COPY pyproject.toml mise.toml README.md ./
-
+# Install the project's dependencies using the lockfile and settings
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache-dir .
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project
 
-COPY src/ ./src/
-
+# Then, add the rest of the project source code and install it
+# Installing separately from its dependencies allows optimal layer caching
+COPY  . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache-dir .
+    uv sync --locked
 
-RUN adduser --disabled-password --gecos "" appuser \
-    && chown -R appuser:appuser /app
-
-USER appuser
+# Use the non-root user to run our application
+USER nonroot
 
 CMD ["weather-collector"]
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD pgrep -f "weather-collector" || exit 1
