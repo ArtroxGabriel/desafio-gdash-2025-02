@@ -8,14 +8,27 @@ import {
 } from '@core/http/query/query.decorator';
 import type { ProtectedRequest } from '@core/http/request';
 import { PaginationResponseDTO, StatusCode } from '@core/http/response';
-import { Controller, Get, Logger, Param, Query, Request } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Logger,
+  Param,
+  Patch,
+  Query,
+  Request,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
 import { Effect } from 'effect';
 import { Types } from 'mongoose';
+import { UserInfoDto } from './dto/user-info.dto';
 import { UserDto } from './dto/user.dto';
 import { mapToHttpException } from './user.error';
 import { UserService } from './user.service';
 
+@ApiBearerAuth(HeaderName.AUTHORIZATION)
 @Controller('user')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
@@ -49,7 +62,6 @@ export class UserController {
   }
 
   @Get('my')
-  @ApiBearerAuth(HeaderName.AUTHORIZATION)
   @ApiOkResponse({
     description: 'Retrieved User Private Profile successfully',
     schema: { $ref: getSchemaPath(UserDto) },
@@ -74,6 +86,46 @@ export class UserController {
     this.logger.log(`Starting to get user by ID: ${id.toString()}`);
 
     const program = this.userService.findById(id);
+    return runNest(program, mapToHttpException);
+  }
+
+  @Delete(':id')
+  async disableUser(
+    @Param('id', MongoIdTransformer) id: Types.ObjectId,
+  ): Promise<{ message: string }> {
+    this.logger.log(`Starting to disable user by ID: ${id.toString()}`);
+
+    const program = this.userService.deactivateUser(id).pipe(
+      Effect.map(() => ({
+        message: 'User disabled successfully',
+      })),
+    );
+
+    return runNest(program, mapToHttpException);
+  }
+
+  @Patch()
+  @ApiOkResponse({
+    description: 'Updated User successfully',
+    schema: { $ref: getSchemaPath(UserDto) },
+  })
+  async updateUser(
+    @Request() request: ProtectedRequest,
+    @Body() updateUserDto: UserInfoDto,
+  ) {
+    this.logger.log(`Starting to update user`);
+
+    if (updateUserDto.new_password && !updateUserDto.password) {
+      throw new BadRequestException(
+        'Current password is required to set a new password',
+      );
+    }
+
+    const program = this.userService.updateProfile(
+      request.user._id,
+      updateUserDto,
+    );
+
     return runNest(program, mapToHttpException);
   }
 
