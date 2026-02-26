@@ -28,8 +28,11 @@
       }
     ],
     "paths": {
+      "@ai/*": ["./src/ai/*"],
+      "@config/*": ["./src/config/*"],
       "@core/*": ["./src/core/*"],
       "@common/*": ["./src/common/*"],
+      "@insights/*": ["./src/insights/*"],
       "@weather/*": ["./src/weather/*"],
       "@user/*": ["./src/user/*"],
       "@auth/*": ["./src/auth/*"]
