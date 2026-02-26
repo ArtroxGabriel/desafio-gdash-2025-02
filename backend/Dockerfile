@@ -23,6 +23,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /app/dist ./dist
+COPY keys ./keys
 
 ENV NODE_ENV=production
 ENV NESTJS_PORT=3000
