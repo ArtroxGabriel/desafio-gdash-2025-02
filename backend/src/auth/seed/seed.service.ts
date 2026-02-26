@@ -124,7 +124,7 @@ export class SeedService {
 
     const defaultUser = new this.userModel({
       name: 'Admin User',
-      email: 'admin@localhost.dev',
+      email: 'admin@gdash.io',
       password: hashedPassword,
       roles: [adminRole._id],
       status: true,
@@ -141,8 +141,6 @@ export class SeedService {
       },
     });
 
-    this.logger.debug(
-      `Created default admin user with email: admin@localhost.dev`,
-    );
+    this.logger.debug(`Created default admin user with email: admin@gdash.io`);
   });
 }
